@@ -12,10 +12,24 @@ export type Booking = {
   players: number;
   notes?: string;
   price: number;
+  paymentMethod: PaymentMethod;
   createdAt: string;
   courtName: string;
   status: "upcoming" | "completed" | "cancelled";
 };
+
+export type PaymentMethod = "court" | "whish";
+
+export const PAYMENT_METHODS: { id: PaymentMethod; label: string; description: string }[] = [
+  { id: "court", label: "Pay at the court", description: "Cash or card when you arrive." },
+  { id: "whish", label: "Pay by Whish", description: "Send the amount via Whish Money before your slot." },
+];
+
+export const WHISH_NUMBER = "+961 71 234 567";
+
+export function paymentLabel(method: PaymentMethod | undefined): string {
+  return method === "whish" ? "Pay by Whish" : "Pay at the court";
+}
 
 export type SlotStatus = "available" | "booked" | "selected" | "past";
 
