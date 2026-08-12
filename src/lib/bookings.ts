@@ -249,6 +249,7 @@ export function seedSampleBookings(): void {
         phone: "+961 71 123 456",
         players: 4,
         price: slot.price,
+        paymentMethod: "court",
         createdAt: new Date().toISOString(),
         courtName: COURT_NAME,
         status: "upcoming",

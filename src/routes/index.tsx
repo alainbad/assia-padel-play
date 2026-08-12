@@ -12,6 +12,10 @@ import {
   getSlotEndTime,
   getSlotPrice,
   getSlotStatus,
+  PAYMENT_METHODS,
+  WHISH_NUMBER,
+  paymentLabel,
+  type PaymentMethod,
   type TimeSlot,
 } from "@/lib/bookings";
 import hero1 from "@/assets/hero-1.jpg.asset.json";
@@ -140,9 +144,14 @@ function BookingSection() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetState, setSheetState] = useState<"summary" | "details" | "success">("summary");
-  const [confirmedBooking, setConfirmedBooking] = useState<{ reference: string; date: string; time: string; price: number; players: number } | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", players: 4, notes: "" });
+  const [confirmedBooking, setConfirmedBooking] = useState<{ reference: string; date: string; time: string; price: number; players: number; paymentMethod: PaymentMethod } | null>(null);
+  const [form, setForm] = useState({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court" as PaymentMethod });
   const [upcomingCount, setUpcomingCount] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     setUpcomingCount(getBookingsByStatus().upcoming.length);
@@ -170,11 +179,12 @@ function BookingSection() {
       phone: form.phone,
       players: form.players,
       price: getSlotPrice(slot),
+      paymentMethod: form.paymentMethod,
       courtName: COURT_NAME,
       ...(form.email && { email: form.email }),
       ...(form.notes && { notes: form.notes }),
     });
-    setConfirmedBooking({ reference: booking.reference, date: selectedDateKey, time: selectedTime, price: booking.price, players: form.players });
+    setConfirmedBooking({ reference: booking.reference, date: selectedDateKey, time: selectedTime, price: booking.price, players: form.players, paymentMethod: form.paymentMethod });
     setSheetState("success");
     setUpcomingCount(getBookingsByStatus().upcoming.length);
   };
@@ -182,7 +192,7 @@ function BookingSection() {
   const handleClose = () => {
     setSheetOpen(false);
     setSelectedTime(null);
-    setForm({ name: "", phone: "", email: "", players: 4, notes: "" });
+    setForm({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court" });
   };
 
   const selectedSlot = ALL_SLOTS.find((s) => s.time === selectedTime) || null;
@@ -229,7 +239,15 @@ function BookingSection() {
         <p className="mb-2 text-sm font-semibold text-foreground">
           Available slots for {selectedDayLabel === "Today" ? "today" : selectedDayLabel.toLowerCase()}
         </p>
-        <SlotList dateKey={selectedDateKey} selectedTime={selectedTime} onSelect={handleSlotSelect} />
+        {hydrated ? (
+          <SlotList dateKey={selectedDateKey} selectedTime={selectedTime} onSelect={handleSlotSelect} />
+        ) : (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {ALL_SLOTS.map((s) => (
+              <div key={s.time} className="h-[62px] animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+        )}
       </div>
 
       {sheetOpen && selectedSlot && (
