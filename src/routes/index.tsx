@@ -343,7 +343,7 @@ function Pricing() {
               </ul>
               <a
                 href="#contact"
-                className={`mt-8 block w-full rounded-full px-5 py-3 text-center text-sm font-semibold transition-all ${
+                className={`mt-auto block w-full rounded-full px-5 py-3 text-center text-sm font-semibold transition-all ${
                   plan.highlighted
                     ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "border border-white/20 bg-white/5 text-foreground hover:bg-white/10"
