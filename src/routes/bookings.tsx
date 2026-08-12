@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { getBookingsByStatus, cancelBooking, formatDisplayDate, formatTime12h, type Booking } from "@/lib/bookings";
+import { getBookingsByStatus, cancelBooking, formatDisplayDate, formatTime12h, paymentLabel, type Booking } from "@/lib/bookings";
 
 export const Route = createFileRoute("/bookings")({
   head: () => ({
@@ -116,6 +116,10 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: (id: 
         <div>
           <p className="text-muted-foreground">Reference</p>
           <p className="font-medium text-foreground">{booking.reference}</p>
+        </div>
+        <div className="col-span-2">
+          <p className="text-muted-foreground">Payment</p>
+          <p className="font-medium text-foreground">{paymentLabel(booking.paymentMethod)}</p>
         </div>
       </div>
 
