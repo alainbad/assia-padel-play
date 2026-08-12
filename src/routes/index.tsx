@@ -12,7 +12,6 @@ import {
   getSlotEndTime,
   getSlotPrice,
   getSlotStatus,
-  seedSampleBookings,
   type TimeSlot,
 } from "@/lib/bookings";
 import hero1 from "@/assets/hero-1.jpg.asset.json";
