@@ -10,6 +10,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import logo from "../assets/logo-padel.png";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -90,7 +91,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&display=swap" },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
     ],
   }),
   shellComponent: RootShell,
@@ -135,9 +136,7 @@ function Header() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm safe-area-inset-top">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
         <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-foreground">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-[10px] font-extrabold text-primary-foreground">
-            A
-          </span>
+          <img src={logo} alt="Assia Padel Court logo" className="h-8 w-8 object-contain" width={32} height={32} />
           <span>Assia Padel</span>
         </Link>
 

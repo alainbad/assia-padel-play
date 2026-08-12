@@ -12,6 +12,10 @@ import {
   getSlotEndTime,
   getSlotPrice,
   getSlotStatus,
+  PAYMENT_METHODS,
+  WHISH_NUMBER,
+  paymentLabel,
+  type PaymentMethod,
   type TimeSlot,
 } from "@/lib/bookings";
 import hero1 from "@/assets/hero-1.jpg.asset.json";
@@ -140,9 +144,14 @@ function BookingSection() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetState, setSheetState] = useState<"summary" | "details" | "success">("summary");
-  const [confirmedBooking, setConfirmedBooking] = useState<{ reference: string; date: string; time: string; price: number; players: number } | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", players: 4, notes: "" });
+  const [confirmedBooking, setConfirmedBooking] = useState<{ reference: string; date: string; time: string; price: number; players: number; paymentMethod: PaymentMethod } | null>(null);
+  const [form, setForm] = useState({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court" as PaymentMethod });
   const [upcomingCount, setUpcomingCount] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     setUpcomingCount(getBookingsByStatus().upcoming.length);
@@ -170,11 +179,12 @@ function BookingSection() {
       phone: form.phone,
       players: form.players,
       price: getSlotPrice(slot),
+      paymentMethod: form.paymentMethod,
       courtName: COURT_NAME,
       ...(form.email && { email: form.email }),
       ...(form.notes && { notes: form.notes }),
     });
-    setConfirmedBooking({ reference: booking.reference, date: selectedDateKey, time: selectedTime, price: booking.price, players: form.players });
+    setConfirmedBooking({ reference: booking.reference, date: selectedDateKey, time: selectedTime, price: booking.price, players: form.players, paymentMethod: form.paymentMethod });
     setSheetState("success");
     setUpcomingCount(getBookingsByStatus().upcoming.length);
   };
@@ -182,7 +192,7 @@ function BookingSection() {
   const handleClose = () => {
     setSheetOpen(false);
     setSelectedTime(null);
-    setForm({ name: "", phone: "", email: "", players: 4, notes: "" });
+    setForm({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court" });
   };
 
   const selectedSlot = ALL_SLOTS.find((s) => s.time === selectedTime) || null;
@@ -229,7 +239,15 @@ function BookingSection() {
         <p className="mb-2 text-sm font-semibold text-foreground">
           Available slots for {selectedDayLabel === "Today" ? "today" : selectedDayLabel.toLowerCase()}
         </p>
-        <SlotList dateKey={selectedDateKey} selectedTime={selectedTime} onSelect={handleSlotSelect} />
+        {hydrated ? (
+          <SlotList dateKey={selectedDateKey} selectedTime={selectedTime} onSelect={handleSlotSelect} />
+        ) : (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {ALL_SLOTS.map((s) => (
+              <div key={s.time} className="h-[62px] animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+        )}
       </div>
 
       {sheetOpen && selectedSlot && (
@@ -408,7 +426,7 @@ function DetailsSheet({
 }: {
   dateKey: string;
   slot: TimeSlot;
-  form: { name: string; phone: string; email: string; players: number; notes: string };
+  form: { name: string; phone: string; email: string; players: number; notes: string; paymentMethod: PaymentMethod };
   setForm: React.Dispatch<React.SetStateAction<typeof form>>;
   onConfirm: () => void;
   onBack: () => void;
@@ -438,6 +456,43 @@ function DetailsSheet({
             placeholder="e.g. Karim Haddad"
             className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-medium text-foreground">Payment method</p>
+          <div className="space-y-2">
+            {PAYMENT_METHODS.map((m) => {
+              const active = form.paymentMethod === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, paymentMethod: m.id }))}
+                  aria-pressed={active}
+                  className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
+                    active ? "border-primary bg-primary/5" : "border-border bg-background hover:bg-secondary"
+                  }`}
+                >
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                      active ? "border-primary" : "border-input"
+                    }`}
+                  >
+                    {active && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
+                  </span>
+                  <span>
+                    <span className="block text-sm font-semibold text-foreground">{m.label}</span>
+                    <span className="block text-xs text-muted-foreground">{m.description}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {form.paymentMethod === "whish" && (
+            <p className="mt-2 rounded-xl bg-secondary px-4 py-3 text-xs text-secondary-foreground">
+              Send ${slot.price} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span> and keep the confirmation. Your slot is held until then.
+            </p>
+          )}
         </div>
 
         <div>
@@ -524,7 +579,7 @@ function SuccessSheet({
   booking,
   onClose,
 }: {
-  booking: { reference: string; date: string; time: string; price: number; players: number };
+  booking: { reference: string; date: string; time: string; price: number; players: number; paymentMethod: PaymentMethod };
   onClose: () => void;
 }) {
   const shareData = {
@@ -566,8 +621,13 @@ function SuccessSheet({
         {formatTime12h(booking.time)} — {getSlotEndTime(booking.time, 90)}
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {COURT_NAME} · {booking.players} players · ${booking.price} — Pay at Court
+        {COURT_NAME} · {booking.players} players · ${booking.price} — {paymentLabel(booking.paymentMethod)}
       </p>
+      {booking.paymentMethod === "whish" && (
+        <p className="mt-2 rounded-xl bg-secondary px-4 py-3 text-xs text-secondary-foreground">
+          Send ${booking.price} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span> to complete your payment.
+        </p>
+      )}
       <p className="mt-4 text-sm font-medium text-foreground">
         Booking reference: <span className="font-display text-base font-bold">{booking.reference}</span>
       </p>
