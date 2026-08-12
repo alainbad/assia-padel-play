@@ -44,10 +44,6 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  useEffect(() => {
-    seedSampleBookings();
-  }, []);
-
   return (
     <div className="bg-background">
       <HeroGallery />
