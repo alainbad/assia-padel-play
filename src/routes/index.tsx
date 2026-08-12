@@ -316,7 +316,7 @@ function Pricing() {
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`relative rounded-2xl border p-8 transition-all hover:-translate-y-1 ${
+              className={`relative flex h-full flex-col rounded-2xl border p-8 transition-all hover:-translate-y-1 ${
                 plan.highlighted
                   ? "border-primary bg-gradient-to-b from-primary/10 to-card shadow-2xl shadow-primary/10"
                   : "border-white/10 bg-card hover:border-white/20"
