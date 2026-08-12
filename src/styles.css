@@ -7,9 +7,9 @@
 /*
  * Design system: Assia Padel Court
  *
- * A dark, modern, sporty palette built around deep navy surfaces,
- * electric blue primary energy, and vibrant green accents that echo
- * a lit padel court at night.
+ * A warm, light, boutique palette inspired by Lebanese mountain villages,
+ * limestone, olive groves, and the green of a padel court. Built to feel
+ * human-made, premium, and relaxed rather than like generic SaaS software.
  */
 
 @theme inline {
@@ -54,10 +54,13 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Brand-specific motion tokens */
-  --animate-fade-in: fade-in 0.8s ease-out forwards;
-  --animate-slide-up: slide-up 0.8s ease-out forwards;
-  --animate-pulse-slow: pulse-slow 3s ease-in-out infinite;
+  --font-sans: var(--font-body);
+  --font-display: var(--font-heading);
+
+  --animate-fade-in: fade-in 0.4s ease-out forwards;
+  --animate-slide-up: slide-up 0.5s ease-out forwards;
+  --animate-sheet-in: sheet-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-backdrop-in: backdrop-in 0.25s ease-out forwards;
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -65,77 +68,62 @@
   }
 
   @keyframes slide-up {
-    from { opacity: 0; transform: translateY(24px); }
+    from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes pulse-slow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.85; }
+  @keyframes sheet-in {
+    from { opacity: 0; transform: translateY(100%); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }
 
 :root {
-  --radius: 0.875rem;
+  --radius: 0.75rem;
 
-  /* Dark sporty default theme */
-  --background: oklch(0.125 0.032 264.5);
-  --foreground: oklch(0.97 0.01 250);
-  --card: oklch(0.175 0.04 262);
-  --card-foreground: oklch(0.97 0.01 250);
-  --popover: oklch(0.16 0.04 262);
-  --popover-foreground: oklch(0.97 0.01 250);
-  --primary: oklch(0.62 0.195 250);
-  --primary-foreground: oklch(0.1 0.02 250);
-  --secondary: oklch(0.22 0.05 260);
-  --secondary-foreground: oklch(0.97 0.01 250);
-  --muted: oklch(0.22 0.04 260);
-  --muted-foreground: oklch(0.7 0.04 255);
-  --accent: oklch(0.7 0.2 150);
-  --accent-foreground: oklch(0.1 0.02 250);
-  --destructive: oklch(0.62 0.22 25);
-  --destructive-foreground: oklch(0.97 0.01 250);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.62 0.195 250);
+  --font-heading: "Manrope", sans-serif;
+  --font-body: "Inter", sans-serif;
 
-  --chart-1: oklch(0.62 0.195 250);
-  --chart-2: oklch(0.7 0.2 150);
-  --chart-3: oklch(0.78 0.18 85);
-  --chart-4: oklch(0.55 0.18 290);
-  --chart-5: oklch(0.65 0.16 340);
-
-  --sidebar: oklch(0.15 0.04 262);
-  --sidebar-foreground: oklch(0.97 0.01 250);
-  --sidebar-primary: oklch(0.62 0.195 250);
-  --sidebar-primary-foreground: oklch(0.1 0.02 250);
-  --sidebar-accent: oklch(0.22 0.05 260);
-  --sidebar-accent-foreground: oklch(0.97 0.01 250);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.62 0.195 250);
-}
-
-.dark {
-  /* Light variant kept for completeness, but default is already dark. */
-  --background: oklch(0.97 0.01 250);
-  --foreground: oklch(0.125 0.032 264.5);
+  /* Light warm stone palette */
+  --background: oklch(0.97 0.01 95);
+  --foreground: oklch(0.25 0.02 280);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.125 0.032 264.5);
+  --card-foreground: oklch(0.25 0.02 280);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.125 0.032 264.5);
-  --primary: oklch(0.55 0.18 250);
-  --primary-foreground: oklch(0.97 0.01 250);
-  --secondary: oklch(0.94 0.02 250);
-  --secondary-foreground: oklch(0.125 0.032 264.5);
-  --muted: oklch(0.94 0.02 250);
-  --muted-foreground: oklch(0.55 0.05 260);
-  --accent: oklch(0.65 0.18 150);
-  --accent-foreground: oklch(0.97 0.01 250);
-  --destructive: oklch(0.62 0.22 25);
-  --destructive-foreground: oklch(0.97 0.01 250);
-  --border: oklch(0.2 0.02 260 / 12%);
-  --input: oklch(0.2 0.02 260 / 12%);
-  --ring: oklch(0.55 0.18 250);
+  --popover-foreground: oklch(0.25 0.02 280);
+  --primary: oklch(0.55 0.13 145);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.93 0.02 95);
+  --secondary-foreground: oklch(0.35 0.02 280);
+  --muted: oklch(0.92 0.02 95);
+  --muted-foreground: oklch(0.55 0.02 280);
+  --accent: oklch(0.45 0.12 145);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.18 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.82 0.02 95);
+  --input: oklch(0.85 0.02 95);
+  --ring: oklch(0.55 0.13 145);
+
+  --chart-1: oklch(0.55 0.13 145);
+  --chart-2: oklch(0.65 0.12 85);
+  --chart-3: oklch(0.45 0.1 220);
+  --chart-4: oklch(0.6 0.08 40);
+  --chart-5: oklch(0.7 0.09 340);
+
+  --sidebar: oklch(0.95 0.01 95);
+  --sidebar-foreground: oklch(0.25 0.02 280);
+  --sidebar-primary: oklch(0.55 0.13 145);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9 0.02 95);
+  --sidebar-accent-foreground: oklch(0.35 0.02 280);
+  --sidebar-border: oklch(0.82 0.02 95);
+  --sidebar-ring: oklch(0.55 0.13 145);
 }
 
 @layer base {
@@ -143,13 +131,23 @@
     border-color: var(--color-border);
   }
 
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  html {
-    scroll-behavior: smooth;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -158,15 +156,24 @@
     text-wrap: balance;
   }
 
-  .animation-delay-200 {
-    animation-delay: 200ms;
+  .font-display {
+    font-family: var(--font-heading);
   }
 
-  .animation-delay-400 {
-    animation-delay: 400ms;
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  .animation-delay-600 {
-    animation-delay: 600ms;
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
