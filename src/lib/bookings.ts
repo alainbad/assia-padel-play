@@ -258,3 +258,32 @@ export function seedSampleBookings(): void {
   }
   saveBookings(sampleBookings);
 }
+
+/**
+ * Best-effort mirror of a local booking into the backend so the court owner
+ * can see it in the admin dashboard. Failures are ignored: the booking still
+ * lives in localStorage for the customer.
+ */
+export async function syncBookingToBackend(booking: Booking): Promise<void> {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    await supabase.from("bookings").insert({
+      id: booking.id,
+      reference: booking.reference,
+      date: booking.date,
+      time: booking.time,
+      duration: booking.duration,
+      name: booking.name,
+      phone: booking.phone,
+      email: booking.email ?? null,
+      players: booking.players,
+      notes: booking.notes ?? null,
+      price: booking.price,
+      payment_method: booking.paymentMethod,
+      court_name: booking.courtName,
+      status: "upcoming",
+    });
+  } catch {
+    // ignore — offline or backend unavailable
+  }
+}
