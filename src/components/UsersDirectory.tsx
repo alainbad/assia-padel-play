@@ -17,6 +17,21 @@ function tabClass(active: boolean): string {
   }`;
 }
 
+function csvCell(value: string | null | undefined): string {
+  const v = value ?? "";
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map(csvCell).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function UsersDirectory({ bookings }: { bookings: BookedUserSource[] }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"registered" | "booked">("registered");
@@ -36,6 +51,22 @@ export function UsersDirectory({ bookings }: { bookings: BookedUserSource[] }) {
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [bookings]);
+
+  function handleExport() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (tab === "registered") {
+      const users = registeredQuery.data ?? [];
+      downloadCsv(`registered-users-${today}.csv`, [
+        ["Name", "Email", "Phone", "Registered at"],
+        ...users.map((u) => [u.name ?? "", u.email ?? "", u.phone ?? "", u.createdAt]),
+      ]);
+    } else {
+      downloadCsv(`booked-users-${today}.csv`, [
+        ["Name", "Phone", "Email"],
+        ...bookedUsers.map((u) => [u.name, u.phone, u.email ?? ""]),
+      ]);
+    }
+  }
 
   return (
     <section className="rounded-xl border border-border bg-card p-4">
@@ -57,7 +88,7 @@ export function UsersDirectory({ bookings }: { bookings: BookedUserSource[] }) {
 
       {open && (
         <div className="mt-4">
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setTab("registered")}
@@ -71,6 +102,18 @@ export function UsersDirectory({ bookings }: { bookings: BookedUserSource[] }) {
               className={tabClass(tab === "booked")}
             >
               Booked ({bookedUsers.length})
+            </button>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={
+                tab === "registered"
+                  ? !registeredQuery.data || registeredQuery.data.length === 0
+                  : bookedUsers.length === 0
+              }
+              className="ml-auto rounded-lg border border-input px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
+            >
+              Export CSV
             </button>
           </div>
 
