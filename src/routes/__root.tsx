@@ -86,6 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Assia Padel Court" },
       { name: "description", content: "Book your outdoor padel court in Assia, Lebanon. Simple, fast, no account required." },
       { name: "author", content: "Assia Padel Court" },
+      { property: "og:site_name", content: "Assia Padel Court" },
       { property: "og:title", content: "Assia Padel Court" },
       { property: "og:description", content: "Book your outdoor padel court in Assia, Lebanon. Simple, fast, no account required." },
       { property: "og:type", content: "website" },
