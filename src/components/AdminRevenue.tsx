@@ -1,5 +1,14 @@
 import { useMemo } from "react";
-import { formatDateKey, formatTime12h, paymentLabel, type PaymentMethod } from "@/lib/bookings";
+import {
+  amountCollected,
+  amountPending,
+  formatDateKey,
+  formatTime12h,
+  paymentLabel,
+  paymentStatusLabel,
+  type PaymentMethod,
+  type PaymentStatus,
+} from "@/lib/bookings";
 
 type RevenueBooking = {
   date: string;
@@ -8,13 +17,10 @@ type RevenueBooking = {
   phone: string;
   price: number;
   payment_method: string;
+  payment_status: PaymentStatus;
   status: string;
   reference: string;
 };
-
-function isPast(date: string, time: string): boolean {
-  return new Date(`${date}T${time}:00`).getTime() < Date.now();
-}
 
 function csvEscape(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
@@ -31,14 +37,16 @@ export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
     let pendingWhish = 0;
     for (const b of active) {
       const isWhish = b.payment_method === "whish";
-      if (isPast(b.date, b.time)) {
-        collected += b.price;
-        if (isWhish) collectedWhish += b.price;
-        else collectedCourt += b.price;
+      const gotten = amountCollected(b.price, b.payment_status);
+      const owed = amountPending(b.price, b.payment_status);
+      collected += gotten;
+      pending += owed;
+      if (isWhish) {
+        collectedWhish += gotten;
+        pendingWhish += owed;
       } else {
-        pending += b.price;
-        if (isWhish) pendingWhish += b.price;
-        else pendingCourt += b.price;
+        collectedCourt += gotten;
+        pendingCourt += owed;
       }
     }
     return {
@@ -70,7 +78,7 @@ export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
       `Pending - Pay at court,${stats.pendingCourt}`,
       `Pending - Whish,${stats.pendingWhish}`,
       "",
-      "Date,Time,Customer,Phone,Payment Method,Price,Money Status,Reference",
+      "Date,Time,Customer,Phone,Payment Method,Price,Payment Status,Amount Collected,Amount Pending,Reference",
       ...active.map((b) =>
         [
           b.date,
@@ -79,7 +87,9 @@ export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
           b.phone,
           paymentLabel(b.payment_method as PaymentMethod),
           b.price,
-          isPast(b.date, b.time) ? "collected" : "pending",
+          paymentStatusLabel(b.payment_status),
+          amountCollected(b.price, b.payment_status),
+          amountPending(b.price, b.payment_status),
           b.reference,
         ].join(","),
       ),
@@ -102,7 +112,7 @@ export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
         <div>
           <h2 className="font-display text-base font-bold text-foreground">Money</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Collected = bookings whose slot has passed. Pending = upcoming bookings.
+            Based on payment status marked per booking below — not automatic.
           </p>
         </div>
         <button

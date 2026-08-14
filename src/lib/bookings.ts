@@ -22,7 +22,11 @@ export type PaymentMethod = "court" | "whish";
 
 export const PAYMENT_METHODS: { id: PaymentMethod; label: string; description: string }[] = [
   { id: "court", label: "Pay at the court", description: "Cash or card when you arrive." },
-  { id: "whish", label: "Pay by Whish", description: "Send the amount via Whish Money before your slot." },
+  {
+    id: "whish",
+    label: "Pay by Whish",
+    description: "Send the amount via Whish Money before your slot.",
+  },
 ];
 
 export const WHISH_NUMBER = "+961 71 234 567";
@@ -43,22 +47,109 @@ export type TimeSlot = {
 
 export const SLOT_DURATION = 90;
 export const COURT_NAME = "Court 1";
-export const COURT_PRICE_DAY = 25;
-export const COURT_PRICE_EVENING = 35;
+export const COURT_PRICE = 40;
+export const DEPOSIT_AMOUNT = 20;
 
 export const ALL_SLOTS: TimeSlot[] = [
-  { time: "08:00", label: "8:00 AM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "morning" },
-  { time: "09:30", label: "9:30 AM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "morning" },
-  { time: "11:00", label: "11:00 AM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "morning" },
-  { time: "12:30", label: "12:30 PM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "afternoon" },
-  { time: "14:00", label: "2:00 PM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "afternoon" },
-  { time: "15:30", label: "3:30 PM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "afternoon" },
-  { time: "17:00", label: "5:00 PM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "afternoon" },
-  { time: "18:30", label: "6:30 PM", duration: SLOT_DURATION, price: COURT_PRICE_EVENING, period: "evening" },
-  { time: "20:00", label: "8:00 PM", duration: SLOT_DURATION, price: COURT_PRICE_EVENING, period: "evening" },
-  { time: "21:30", label: "9:30 PM", duration: SLOT_DURATION, price: COURT_PRICE_EVENING, period: "evening" },
-  { time: "23:00", label: "11:00 PM", duration: SLOT_DURATION, price: COURT_PRICE_EVENING, period: "evening" },
+  {
+    time: "08:00",
+    label: "8:00 AM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "morning",
+  },
+  {
+    time: "09:30",
+    label: "9:30 AM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "morning",
+  },
+  {
+    time: "11:00",
+    label: "11:00 AM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "morning",
+  },
+  {
+    time: "12:30",
+    label: "12:30 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "afternoon",
+  },
+  {
+    time: "14:00",
+    label: "2:00 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "afternoon",
+  },
+  {
+    time: "15:30",
+    label: "3:30 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "afternoon",
+  },
+  {
+    time: "17:00",
+    label: "5:00 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "afternoon",
+  },
+  {
+    time: "18:30",
+    label: "6:30 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "evening",
+  },
+  {
+    time: "20:00",
+    label: "8:00 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "evening",
+  },
+  {
+    time: "21:30",
+    label: "9:30 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "evening",
+  },
+  {
+    time: "23:00",
+    label: "11:00 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE,
+    period: "evening",
+  },
 ];
+
+// Admin-tracked payment state for a booking. "deposit" means the fixed
+// DEPOSIT_AMOUNT has been received, with the remainder still owed; "paid"
+// means the full price has been received.
+export type PaymentStatus = "unpaid" | "deposit" | "paid";
+
+export function amountCollected(price: number, paymentStatus: PaymentStatus): number {
+  if (paymentStatus === "paid") return price;
+  if (paymentStatus === "deposit") return DEPOSIT_AMOUNT;
+  return 0;
+}
+
+export function amountPending(price: number, paymentStatus: PaymentStatus): number {
+  return price - amountCollected(price, paymentStatus);
+}
+
+export function paymentStatusLabel(paymentStatus: PaymentStatus): string {
+  if (paymentStatus === "paid") return "Paid in full";
+  if (paymentStatus === "deposit") return `Deposit received ($${DEPOSIT_AMOUNT})`;
+  return "Unpaid";
+}
 
 function generateReference(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -86,7 +177,12 @@ export function saveBookings(bookings: Booking[]): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
 }
 
-export function addBooking(booking: Omit<Booking, "id" | "reference" | "createdAt" | "status" | "email" | "notes"> & { email?: string; notes?: string }): Booking {
+export function addBooking(
+  booking: Omit<Booking, "id" | "reference" | "createdAt" | "status" | "email" | "notes"> & {
+    email?: string;
+    notes?: string;
+  },
+): Booking {
   const newBooking: Booking = {
     ...booking,
     id: crypto.randomUUID(),
@@ -101,7 +197,9 @@ export function addBooking(booking: Omit<Booking, "id" | "reference" | "createdA
 }
 
 export function cancelBooking(id: string): void {
-  const bookings = loadBookings().map((b) => (b.id === id ? { ...b, status: "cancelled" as const } : b));
+  const bookings = loadBookings().map((b) =>
+    b.id === id ? { ...b, status: "cancelled" as const } : b,
+  );
   saveBookings(bookings);
 }
 
@@ -113,7 +211,9 @@ export function formatDateKey(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function generateDayOptions(count = 14): { date: Date; key: string; label: string; sublabel: string }[] {
+export function generateDayOptions(
+  count = 14,
+): { date: Date; key: string; label: string; sublabel: string }[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const options = [];
@@ -122,7 +222,20 @@ export function generateDayOptions(count = 14): { date: Date; key: string; label
     date.setDate(today.getDate() + i);
     const key = formatDateKey(date);
     const dayNames: readonly string[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const months: readonly string[] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const months: readonly string[] = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     let label: string;
     if (i === 0) label = "Today";
     else if (i === 1) label = "Tomorrow";
@@ -217,8 +330,12 @@ export function getBookingsByStatus(): { upcoming: Booking[]; previous: Booking[
       previous.push({ ...b, status: "completed" });
     }
   }
-  upcoming.sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
-  previous.sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+  upcoming.sort(
+    (a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime(),
+  );
+  previous.sort(
+    (a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime(),
+  );
   return { upcoming, previous };
 }
 
