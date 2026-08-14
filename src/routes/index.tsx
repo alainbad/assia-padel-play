@@ -5,6 +5,7 @@ import {
   COURT_NAME,
   SLOT_DURATION,
   addBooking,
+  syncBookingToBackend,
   formatDisplayDate,
   formatTime12h,
   generateDayOptions,
