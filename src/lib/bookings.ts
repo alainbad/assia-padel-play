@@ -1,4 +1,6 @@
-const STORAGE_KEY = "assia-padel-bookings-v1";
+import { isSupabaseConfigured, requireSupabase } from "./supabase";
+
+const MY_BOOKINGS_KEY = "assia-padel-my-bookings-v2";
 
 export type Booking = {
   id: string;
@@ -22,7 +24,11 @@ export type PaymentMethod = "court" | "whish";
 
 export const PAYMENT_METHODS: { id: PaymentMethod; label: string; description: string }[] = [
   { id: "court", label: "Pay at the court", description: "Cash or card when you arrive." },
-  { id: "whish", label: "Pay by Whish", description: "Send the amount via Whish Money before your slot." },
+  {
+    id: "whish",
+    label: "Pay by Whish",
+    description: "Send the amount via Whish Money before your slot.",
+  },
 ];
 
 export const WHISH_NUMBER = "+961 71 234 567";
@@ -47,17 +53,83 @@ export const COURT_PRICE_DAY = 25;
 export const COURT_PRICE_EVENING = 35;
 
 export const ALL_SLOTS: TimeSlot[] = [
-  { time: "08:00", label: "8:00 AM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "morning" },
-  { time: "09:30", label: "9:30 AM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "morning" },
-  { time: "11:00", label: "11:00 AM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "morning" },
-  { time: "12:30", label: "12:30 PM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "afternoon" },
-  { time: "14:00", label: "2:00 PM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "afternoon" },
-  { time: "15:30", label: "3:30 PM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "afternoon" },
-  { time: "17:00", label: "5:00 PM", duration: SLOT_DURATION, price: COURT_PRICE_DAY, period: "afternoon" },
-  { time: "18:30", label: "6:30 PM", duration: SLOT_DURATION, price: COURT_PRICE_EVENING, period: "evening" },
-  { time: "20:00", label: "8:00 PM", duration: SLOT_DURATION, price: COURT_PRICE_EVENING, period: "evening" },
-  { time: "21:30", label: "9:30 PM", duration: SLOT_DURATION, price: COURT_PRICE_EVENING, period: "evening" },
-  { time: "23:00", label: "11:00 PM", duration: SLOT_DURATION, price: COURT_PRICE_EVENING, period: "evening" },
+  {
+    time: "08:00",
+    label: "8:00 AM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_DAY,
+    period: "morning",
+  },
+  {
+    time: "09:30",
+    label: "9:30 AM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_DAY,
+    period: "morning",
+  },
+  {
+    time: "11:00",
+    label: "11:00 AM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_DAY,
+    period: "morning",
+  },
+  {
+    time: "12:30",
+    label: "12:30 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_DAY,
+    period: "afternoon",
+  },
+  {
+    time: "14:00",
+    label: "2:00 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_DAY,
+    period: "afternoon",
+  },
+  {
+    time: "15:30",
+    label: "3:30 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_DAY,
+    period: "afternoon",
+  },
+  {
+    time: "17:00",
+    label: "5:00 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_DAY,
+    period: "afternoon",
+  },
+  {
+    time: "18:30",
+    label: "6:30 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_EVENING,
+    period: "evening",
+  },
+  {
+    time: "20:00",
+    label: "8:00 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_EVENING,
+    period: "evening",
+  },
+  {
+    time: "21:30",
+    label: "9:30 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_EVENING,
+    period: "evening",
+  },
+  {
+    time: "23:00",
+    label: "11:00 PM",
+    duration: SLOT_DURATION,
+    price: COURT_PRICE_EVENING,
+    period: "evening",
+  },
 ];
 
 function generateReference(): string {
@@ -69,41 +141,151 @@ function generateReference(): string {
   return `PAD-${result}`;
 }
 
-export function loadBookings(): Booking[] {
+// ── row <-> Booking mapping ────────────────────────────────────────────
+
+type BookingRow = {
+  id: string;
+  reference: string;
+  date: string;
+  time: string;
+  duration: number;
+  name: string;
+  phone: string;
+  email: string | null;
+  players: number;
+  notes: string | null;
+  price: number;
+  payment_method: PaymentMethod;
+  court_name: string;
+  status: Booking["status"];
+  created_at: string;
+};
+
+function rowToBooking(row: BookingRow): Booking {
+  return {
+    id: row.id,
+    reference: row.reference,
+    date: row.date,
+    time: row.time,
+    duration: row.duration,
+    name: row.name,
+    phone: row.phone,
+    ...(row.email ? { email: row.email } : {}),
+    players: row.players,
+    ...(row.notes ? { notes: row.notes } : {}),
+    price: row.price,
+    paymentMethod: row.payment_method,
+    createdAt: row.created_at,
+    courtName: row.court_name,
+    status: row.status,
+  };
+}
+
+// ── "my bookings" local cache (this device only, no login for customers) ─
+
+function loadMyBookings(): Booking[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(MY_BOOKINGS_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as Booking[];
-    return parsed.filter((b) => b.status !== "cancelled");
+    return JSON.parse(raw) as Booking[];
   } catch {
     return [];
   }
 }
 
-export function saveBookings(bookings: Booking[]): void {
+function saveMyBookings(bookings: Booking[]): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+  window.localStorage.setItem(MY_BOOKINGS_KEY, JSON.stringify(bookings));
 }
 
-export function addBooking(booking: Omit<Booking, "id" | "reference" | "createdAt" | "status" | "email" | "notes"> & { email?: string; notes?: string }): Booking {
-  const newBooking: Booking = {
-    ...booking,
-    id: crypto.randomUUID(),
-    reference: generateReference(),
-    createdAt: new Date().toISOString(),
-    status: "upcoming",
-  };
-  const bookings = loadBookings();
-  bookings.push(newBooking);
-  saveBookings(bookings);
+function rememberMyBooking(booking: Booking): void {
+  const bookings = loadMyBookings().filter((b) => b.id !== booking.id);
+  bookings.push(booking);
+  saveMyBookings(bookings);
+}
+
+/** Re-checks each locally cached booking against the server, so cancellations
+ * made elsewhere (e.g. by the admin) show up here too. */
+export async function refreshMyBookings(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const cached = loadMyBookings();
+  if (cached.length === 0) return;
+  const client = requireSupabase();
+  const updated = await Promise.all(
+    cached.map(async (b) => {
+      const { data } = await client.rpc("get_booking_by_reference", {
+        p_id: b.id,
+        p_reference: b.reference,
+      });
+      const row = (data as BookingRow[] | null)?.[0];
+      return row ? rowToBooking(row) : b;
+    }),
+  );
+  saveMyBookings(updated);
+}
+
+// ── booking creation / cancellation ─────────────────────────────────────
+
+export class SlotUnavailableError extends Error {
+  constructor() {
+    super("This slot was just booked by someone else. Please pick another time.");
+    this.name = "SlotUnavailableError";
+  }
+}
+
+export async function addBooking(
+  booking: Omit<Booking, "id" | "reference" | "createdAt" | "status" | "email" | "notes"> & {
+    email?: string;
+    notes?: string;
+  },
+): Promise<Booking> {
+  const client = requireSupabase();
+  const reference = generateReference();
+  const { data, error } = await client
+    .from("bookings")
+    .insert({
+      reference,
+      date: booking.date,
+      time: booking.time,
+      duration: booking.duration,
+      name: booking.name,
+      phone: booking.phone,
+      email: booking.email ?? null,
+      players: booking.players,
+      notes: booking.notes ?? null,
+      price: booking.price,
+      payment_method: booking.paymentMethod,
+      court_name: booking.courtName,
+      status: "upcoming",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "23505") throw new SlotUnavailableError();
+    throw new Error(error.message);
+  }
+
+  const newBooking = rowToBooking(data as BookingRow);
+  rememberMyBooking(newBooking);
   return newBooking;
 }
 
-export function cancelBooking(id: string): void {
-  const bookings = loadBookings().map((b) => (b.id === id ? { ...b, status: "cancelled" as const } : b));
-  saveBookings(bookings);
+export async function cancelBooking(id: string, reference: string): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("cancel_booking_by_reference", {
+    p_id: id,
+    p_reference: reference,
+  });
+  if (error) throw new Error(error.message);
+  const bookings = loadMyBookings().map((b) =>
+    b.id === id ? { ...b, status: "cancelled" as const } : b,
+  );
+  saveMyBookings(bookings);
 }
+
+// ── availability ─────────────────────────────────────────────────────
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
@@ -113,7 +295,9 @@ export function formatDateKey(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function generateDayOptions(count = 14): { date: Date; key: string; label: string; sublabel: string }[] {
+export function generateDayOptions(
+  count = 14,
+): { date: Date; key: string; label: string; sublabel: string }[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const options = [];
@@ -122,7 +306,20 @@ export function generateDayOptions(count = 14): { date: Date; key: string; label
     date.setDate(today.getDate() + i);
     const key = formatDateKey(date);
     const dayNames: readonly string[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const months: readonly string[] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const months: readonly string[] = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     let label: string;
     if (i === 0) label = "Today";
     else if (i === 1) label = "Tomorrow";
@@ -145,27 +342,28 @@ export function isSlotPast(dateKey: string, time: string): boolean {
   return slotDate.getTime() < now.getTime();
 }
 
-export function getBookedSlotsForDate(dateKey: string): Set<string> {
-  const bookings = loadBookings();
-  const booked = new Set<string>();
-  for (const b of bookings) {
-    if (b.date === dateKey && b.status !== "cancelled") {
-      booked.add(b.time);
-    }
-  }
-  return booked;
+/** Booked times for a date, fetched from the server (shared across every device). */
+export async function getBookedSlotsForDate(dateKey: string): Promise<Set<string>> {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc("get_booked_times", { p_date: dateKey });
+  if (error) throw new Error(error.message);
+  return new Set((data as { time: string }[] | null)?.map((r) => r.time) ?? []);
 }
 
-export function getSlotStatus(dateKey: string, time: string, selectedTime?: string): SlotStatus {
+export function getSlotStatus(
+  dateKey: string,
+  time: string,
+  bookedSet: Set<string>,
+  selectedTime?: string,
+): SlotStatus {
   if (selectedTime === time) return "selected";
   if (isSlotPast(dateKey, time)) return "past";
-  const booked = getBookedSlotsForDate(dateKey);
-  if (booked.has(time)) return "booked";
+  if (bookedSet.has(time)) return "booked";
   return "available";
 }
 
-export function getAvailableSlotsForDate(dateKey: string): TimeSlot[] {
-  const booked = getBookedSlotsForDate(dateKey);
+export async function getAvailableSlotsForDate(dateKey: string): Promise<TimeSlot[]> {
+  const booked = await getBookedSlotsForDate(dateKey);
   return ALL_SLOTS.filter((s) => !isSlotPast(dateKey, s.time) && !booked.has(s.time));
 }
 
@@ -202,7 +400,7 @@ export function formatTime12h(time: string): string {
 }
 
 export function getBookingsByStatus(): { upcoming: Booking[]; previous: Booking[] } {
-  const bookings = loadBookings().filter((b) => b.status !== "cancelled");
+  const bookings = loadMyBookings().filter((b) => b.status !== "cancelled");
   const now = new Date().getTime();
   const upcoming: Booking[] = [];
   const previous: Booking[] = [];
@@ -217,44 +415,11 @@ export function getBookingsByStatus(): { upcoming: Booking[]; previous: Booking[
       previous.push({ ...b, status: "completed" });
     }
   }
-  upcoming.sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
-  previous.sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+  upcoming.sort(
+    (a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime(),
+  );
+  previous.sort(
+    (a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime(),
+  );
   return { upcoming, previous };
-}
-
-export function seedSampleBookings(): void {
-  if (typeof window === "undefined") return;
-  if (window.localStorage.getItem(STORAGE_KEY)) return;
-  const today = new Date();
-  const seedTimes = ["18:30", "20:00", "21:30"];
-  const seedNames = ["Karim", "Sara & Friends", "Maya", "Rami"];
-  const sampleBookings: Booking[] = [];
-  for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + dayOffset);
-    const key = formatDateKey(d);
-    const count = dayOffset === 0 ? 1 : dayOffset === 1 ? 2 : 1;
-    for (let i = 0; i < count; i++) {
-      const time = seedTimes[(dayOffset + i) % seedTimes.length] ?? "20:00";
-      if (isSlotPast(key, time)) continue;
-      const slot = ALL_SLOTS.find((s) => s.time === time);
-      if (!slot) continue;
-      sampleBookings.push({
-        id: crypto.randomUUID(),
-        reference: generateReference(),
-        date: key,
-        time,
-        duration: SLOT_DURATION,
-        name: seedNames[(dayOffset + i) % seedNames.length] ?? "Guest",
-        phone: "+961 71 123 456",
-        players: 4,
-        price: slot.price,
-        paymentMethod: "court",
-        createdAt: new Date().toISOString(),
-        courtName: COURT_NAME,
-        status: "upcoming",
-      });
-    }
-  }
-  saveBookings(sampleBookings);
 }

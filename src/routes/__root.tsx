@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import logo from "../assets/logo-padel.png";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -125,6 +126,7 @@ function RootComponent() {
           <Outlet />
         </main>
       </div>
+      <Toaster position="top-center" />
     </QueryClientProvider>
   );
 }
@@ -157,6 +159,9 @@ function Header() {
           >
             Book a Court
           </Link>
+          <Link to="/admin" className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground">
+            Admin
+          </Link>
         </nav>
 
         <button
@@ -183,6 +188,13 @@ function Header() {
             </Link>
             <Link to="/" onClick={() => setMenuOpen(false)} className="mt-2 rounded-lg bg-primary px-3 py-2.5 text-center text-base font-semibold text-primary-foreground">
               Book a Court
+            </Link>
+            <Link
+              to="/admin"
+              onClick={() => setMenuOpen(false)}
+              className="mt-1 rounded-lg px-3 py-2 text-center text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground"
+            >
+              Admin
             </Link>
           </nav>
         </div>

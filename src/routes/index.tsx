@@ -1,13 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   ALL_SLOTS,
   COURT_NAME,
   SLOT_DURATION,
+  SlotUnavailableError,
   addBooking,
   formatDisplayDate,
   formatTime12h,
   generateDayOptions,
+  getBookedSlotsForDate,
   getBookingsByStatus,
   getSlotEndTime,
   getSlotPrice,
@@ -36,9 +39,17 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Assia Padel Court | Book Your Court" },
-      { name: "description", content: "Book a single outdoor padel court in Assia, Lebanon. Check availability, choose your time, and confirm in seconds." },
+      {
+        name: "description",
+        content:
+          "Book a single outdoor padel court in Assia, Lebanon. Check availability, choose your time, and confirm in seconds.",
+      },
       { property: "og:title", content: "Assia Padel Court | Book Your Court" },
-      { property: "og:description", content: "Book a single outdoor padel court in Assia, Lebanon. Check availability, choose your time, and confirm in seconds." },
+      {
+        property: "og:description",
+        content:
+          "Book a single outdoor padel court in Assia, Lebanon. Check availability, choose your time, and confirm in seconds.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -96,7 +107,12 @@ function HeroGallery() {
   };
 
   return (
-    <section className="relative w-full overflow-hidden bg-secondary" ref={containerRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    <section
+      className="relative w-full overflow-hidden bg-secondary"
+      ref={containerRef}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <div className="relative aspect-[4/3] w-full sm:aspect-[16/9]">
         {HERO_IMAGES.map((img, i) => (
           <div
@@ -117,8 +133,12 @@ function HeroGallery() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30" />
         <div className="absolute inset-0 flex flex-col justify-end p-4 pb-6">
           <div className="mx-auto w-full max-w-2xl">
-            <p className="font-display text-2xl font-bold text-white sm:text-3xl">Your Court. Your Game.</p>
-            <p className="mt-1 max-w-sm text-sm font-medium text-white/90">Book your next padel session in seconds.</p>
+            <p className="font-display text-2xl font-bold text-white sm:text-3xl">
+              Your Court. Your Game.
+            </p>
+            <p className="mt-1 max-w-sm text-sm font-medium text-white/90">
+              Book your next padel session in seconds.
+            </p>
           </div>
         </div>
       </div>
@@ -144,10 +164,27 @@ function BookingSection() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetState, setSheetState] = useState<"summary" | "details" | "success">("summary");
-  const [confirmedBooking, setConfirmedBooking] = useState<{ reference: string; date: string; time: string; price: number; players: number; paymentMethod: PaymentMethod } | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court" as PaymentMethod });
+  const [confirmedBooking, setConfirmedBooking] = useState<{
+    reference: string;
+    date: string;
+    time: string;
+    price: number;
+    players: number;
+    paymentMethod: PaymentMethod;
+  } | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    players: 4,
+    notes: "",
+    paymentMethod: "court" as PaymentMethod,
+  });
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const [bookedSet, setBookedSet] = useState<Set<string>>(new Set());
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
@@ -156,6 +193,23 @@ function BookingSection() {
   useEffect(() => {
     setUpcomingCount(getBookingsByStatus().upcoming.length);
   }, [selectedDateKey, selectedTime, sheetOpen]);
+
+  const refreshBookedSlots = async (dateKey: string) => {
+    setSlotsLoading(true);
+    try {
+      const booked = await getBookedSlotsForDate(dateKey);
+      setBookedSet(booked);
+    } catch {
+      toast.error("Couldn't load availability. Check your connection and try again.");
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!hydrated || !selectedDateKey) return;
+    void refreshBookedSlots(selectedDateKey);
+  }, [hydrated, selectedDateKey]);
 
   const handleSlotSelect = (time: string) => {
     setSelectedTime(time);
@@ -167,26 +221,48 @@ function BookingSection() {
     setSheetState("details");
   };
 
-  const handleConfirm = () => {
-    if (!selectedTime || !selectedDateKey) return;
+  const handleConfirm = async () => {
+    if (!selectedTime || !selectedDateKey || submitting) return;
     const slot = ALL_SLOTS.find((s) => s.time === selectedTime);
     if (!slot) return;
-    const booking = addBooking({
-      date: selectedDateKey,
-      time: selectedTime,
-      duration: SLOT_DURATION,
-      name: form.name || "Guest",
-      phone: form.phone,
-      players: form.players,
-      price: getSlotPrice(slot),
-      paymentMethod: form.paymentMethod,
-      courtName: COURT_NAME,
-      ...(form.email && { email: form.email }),
-      ...(form.notes && { notes: form.notes }),
-    });
-    setConfirmedBooking({ reference: booking.reference, date: selectedDateKey, time: selectedTime, price: booking.price, players: form.players, paymentMethod: form.paymentMethod });
-    setSheetState("success");
-    setUpcomingCount(getBookingsByStatus().upcoming.length);
+    setSubmitting(true);
+    try {
+      const booking = await addBooking({
+        date: selectedDateKey,
+        time: selectedTime,
+        duration: SLOT_DURATION,
+        name: form.name || "Guest",
+        phone: form.phone,
+        players: form.players,
+        price: getSlotPrice(slot),
+        paymentMethod: form.paymentMethod,
+        courtName: COURT_NAME,
+        ...(form.email && { email: form.email }),
+        ...(form.notes && { notes: form.notes }),
+      });
+      setConfirmedBooking({
+        reference: booking.reference,
+        date: selectedDateKey,
+        time: selectedTime,
+        price: booking.price,
+        players: form.players,
+        paymentMethod: form.paymentMethod,
+      });
+      setSheetState("success");
+      setUpcomingCount(getBookingsByStatus().upcoming.length);
+    } catch (error) {
+      if (error instanceof SlotUnavailableError) {
+        toast.error(error.message);
+        setSheetState("summary");
+        await refreshBookedSlots(selectedDateKey);
+      } else {
+        toast.error(
+          error instanceof Error ? error.message : "Something went wrong. Please try again.",
+        );
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -201,10 +277,17 @@ function BookingSection() {
   return (
     <section className="py-6" id="booking">
       <div className="mb-4">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Book Your Court</h1>
-        <p className="mt-1 text-sm text-muted-foreground">One court. Simple availability. Under 30 seconds.</p>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+          Book Your Court
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          One court. Simple availability. Under 30 seconds.
+        </p>
         {upcomingCount > 0 && (
-          <Link to="/bookings" className="mt-2 inline-flex items-center text-sm font-medium text-primary">
+          <Link
+            to="/bookings"
+            className="mt-2 inline-flex items-center text-sm font-medium text-primary"
+          >
             You have {upcomingCount} upcoming booking{upcomingCount === 1 ? "" : "s"}
             <ArrowRightIcon className="ml-1 h-4 w-4" />
           </Link>
@@ -237,10 +320,16 @@ function BookingSection() {
 
       <div>
         <p className="mb-2 text-sm font-semibold text-foreground">
-          Available slots for {selectedDayLabel === "Today" ? "today" : selectedDayLabel.toLowerCase()}
+          Available slots for{" "}
+          {selectedDayLabel === "Today" ? "today" : selectedDayLabel.toLowerCase()}
         </p>
-        {hydrated ? (
-          <SlotList dateKey={selectedDateKey} selectedTime={selectedTime} onSelect={handleSlotSelect} />
+        {hydrated && !slotsLoading ? (
+          <SlotList
+            dateKey={selectedDateKey}
+            selectedTime={selectedTime}
+            bookedSet={bookedSet}
+            onSelect={handleSlotSelect}
+          />
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {ALL_SLOTS.map((s) => (
@@ -268,6 +357,7 @@ function BookingSection() {
               setForm={setForm}
               onConfirm={handleConfirm}
               onBack={() => setSheetState("summary")}
+              submitting={submitting}
             />
           )}
           {sheetState === "success" && confirmedBooking && (
@@ -279,9 +369,23 @@ function BookingSection() {
   );
 }
 
-function SlotList({ dateKey, selectedTime, onSelect }: { dateKey: string; selectedTime: string | null; onSelect: (time: string) => void }) {
+function SlotList({
+  dateKey,
+  selectedTime,
+  bookedSet,
+  onSelect,
+}: {
+  dateKey: string;
+  selectedTime: string | null;
+  bookedSet: Set<string>;
+  onSelect: (time: string) => void;
+}) {
   const groups = useMemo(() => {
-    const byPeriod: Record<"morning" | "afternoon" | "evening", TimeSlot[]> = { morning: [], afternoon: [], evening: [] };
+    const byPeriod: Record<"morning" | "afternoon" | "evening", TimeSlot[]> = {
+      morning: [],
+      afternoon: [],
+      evening: [],
+    };
     for (const slot of ALL_SLOTS) {
       byPeriod[slot.period].push(slot);
     }
@@ -291,7 +395,7 @@ function SlotList({ dateKey, selectedTime, onSelect }: { dateKey: string; select
   const periodLabel = { morning: "Morning", afternoon: "Afternoon", evening: "Evening" };
 
   const allUnavailable = ALL_SLOTS.every((s) => {
-    const status = getSlotStatus(dateKey, s.time, selectedTime ?? undefined);
+    const status = getSlotStatus(dateKey, s.time, bookedSet, selectedTime ?? undefined);
     return status === "booked" || status === "past";
   });
 
@@ -309,14 +413,23 @@ function SlotList({ dateKey, selectedTime, onSelect }: { dateKey: string; select
       {(["morning", "afternoon", "evening"] as const).map((period) => {
         const slots = groups[period];
         if (slots.length === 0) return null;
-        const visibleSlots = slots.filter((s) => getSlotStatus(dateKey, s.time, selectedTime ?? undefined) !== "past");
+        const visibleSlots = slots.filter(
+          (s) => getSlotStatus(dateKey, s.time, bookedSet, selectedTime ?? undefined) !== "past",
+        );
         if (visibleSlots.length === 0) return null;
         return (
           <div key={period}>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{periodLabel[period]}</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {periodLabel[period]}
+            </p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {slots.map((slot) => {
-                const status = getSlotStatus(dateKey, slot.time, selectedTime ?? undefined);
+                const status = getSlotStatus(
+                  dateKey,
+                  slot.time,
+                  bookedSet,
+                  selectedTime ?? undefined,
+                );
                 return (
                   <TimeSlotButton
                     key={slot.time}
@@ -336,10 +449,20 @@ function SlotList({ dateKey, selectedTime, onSelect }: { dateKey: string; select
   );
 }
 
-function TimeSlotButton({ slot, status, onClick }: { slot: TimeSlot; status: ReturnType<typeof getSlotStatus>; onClick: () => void }) {
-  const base = "relative flex flex-col items-center justify-center rounded-xl border px-2 py-3 text-sm font-medium transition-all";
+function TimeSlotButton({
+  slot,
+  status,
+  onClick,
+}: {
+  slot: TimeSlot;
+  status: ReturnType<typeof getSlotStatus>;
+  onClick: () => void;
+}) {
+  const base =
+    "relative flex flex-col items-center justify-center rounded-xl border px-2 py-3 text-sm font-medium transition-all";
   const styles = {
-    available: "border-border bg-card text-foreground hover:border-primary hover:bg-primary/5 active:scale-95",
+    available:
+      "border-border bg-card text-foreground hover:border-primary hover:bg-primary/5 active:scale-95",
     selected: "border-primary bg-primary text-primary-foreground shadow-sm",
     booked: "border-transparent bg-muted text-muted-foreground cursor-not-allowed opacity-70",
     past: "border-transparent bg-muted text-muted-foreground cursor-not-allowed opacity-50",
@@ -351,19 +474,31 @@ function TimeSlotButton({ slot, status, onClick }: { slot: TimeSlot; status: Ret
       disabled={status === "booked" || status === "past"}
       onClick={onClick}
       className={`${base} ${styles[status]}`}
-      aria-label={status === "booked" ? `${slot.label} booked` : status === "past" ? `${slot.label} past` : slot.label}
+      aria-label={
+        status === "booked"
+          ? `${slot.label} booked`
+          : status === "past"
+            ? `${slot.label} past`
+            : slot.label
+      }
     >
       <span>{slot.label}</span>
       {status === "booked" && <span className="mt-0.5 text-[10px] font-normal">Booked</span>}
       {status === "past" && <span className="mt-0.5 text-[10px] font-normal">Past</span>}
-      {status === "available" && <span className="mt-0.5 text-[10px] font-normal text-primary">${slot.price}</span>}
+      {status === "available" && (
+        <span className="mt-0.5 text-[10px] font-normal text-primary">${slot.price}</span>
+      )}
     </button>
   );
 }
 
 function Sheet({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="absolute inset-0 bg-black/40 animate-backdrop-in" onClick={onClose} />
       <div className="relative w-full max-w-2xl animate-sheet-in rounded-t-2xl bg-card p-5 pb-8 shadow-xl sm:rounded-2xl sm:p-6 sm:pb-6 safe-area-inset-bottom">
         <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-muted sm:hidden" />
@@ -387,7 +522,9 @@ function SummarySheet({
   return (
     <div>
       <div className="mb-5">
-        <p className="font-display text-xl font-bold text-foreground">{formatDisplayDate(dateKey)}</p>
+        <p className="font-display text-xl font-bold text-foreground">
+          {formatDisplayDate(dateKey)}
+        </p>
         <p className="mt-1 text-2xl font-semibold text-foreground">
           {formatTime12h(slot.time)} — {getSlotEndTime(slot.time, slot.duration)}
         </p>
@@ -423,24 +560,37 @@ function DetailsSheet({
   setForm,
   onConfirm,
   onBack,
+  submitting,
 }: {
   dateKey: string;
   slot: TimeSlot;
-  form: { name: string; phone: string; email: string; players: number; notes: string; paymentMethod: PaymentMethod };
+  form: {
+    name: string;
+    phone: string;
+    email: string;
+    players: number;
+    notes: string;
+    paymentMethod: PaymentMethod;
+  };
   setForm: React.Dispatch<React.SetStateAction<typeof form>>;
   onConfirm: () => void;
   onBack: () => void;
+  submitting: boolean;
 }) {
-  const canSubmit = form.name.trim().length >= 2 && form.phone.trim().length >= 8;
+  const canSubmit = form.name.trim().length >= 2 && form.phone.trim().length >= 8 && !submitting;
 
   return (
     <div>
-      <button onClick={onBack} className="mb-3 text-sm font-medium text-muted-foreground hover:text-foreground">
+      <button
+        onClick={onBack}
+        className="mb-3 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
         ← Back to summary
       </button>
       <p className="font-display text-xl font-bold text-foreground">Your details</p>
       <p className="text-sm text-muted-foreground">
-        {formatDisplayDate(dateKey)} · {formatTime12h(slot.time)} — {getSlotEndTime(slot.time, slot.duration)}
+        {formatDisplayDate(dateKey)} · {formatTime12h(slot.time)} —{" "}
+        {getSlotEndTime(slot.time, slot.duration)}
       </p>
 
       <div className="mt-5 space-y-4">
@@ -470,7 +620,9 @@ function DetailsSheet({
                   onClick={() => setForm((f) => ({ ...f, paymentMethod: m.id }))}
                   aria-pressed={active}
                   className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
-                    active ? "border-primary bg-primary/5" : "border-border bg-background hover:bg-secondary"
+                    active
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-background hover:bg-secondary"
                   }`}
                 >
                   <span
@@ -490,7 +642,8 @@ function DetailsSheet({
           </div>
           {form.paymentMethod === "whish" && (
             <p className="mt-2 rounded-xl bg-secondary px-4 py-3 text-xs text-secondary-foreground">
-              Send ${slot.price} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span> and keep the confirmation. Your slot is held until then.
+              Send ${slot.price} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span>{" "}
+              and keep the confirmation. Your slot is held until then.
             </p>
           )}
         </div>
@@ -507,7 +660,9 @@ function DetailsSheet({
             placeholder="+961 71 234 567"
             className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
-          <p className="mt-1 text-xs text-muted-foreground">We may contact you about your booking.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            We may contact you about your booking.
+          </p>
         </div>
 
         <div>
@@ -565,10 +720,12 @@ function DetailsSheet({
           disabled={!canSubmit}
           onClick={onConfirm}
           className={`w-full rounded-xl py-3.5 text-base font-semibold transition-colors ${
-            canSubmit ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground cursor-not-allowed"
+            canSubmit
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "bg-muted text-muted-foreground cursor-not-allowed"
           }`}
         >
-          Confirm Booking · ${slot.price}
+          {submitting ? "Booking…" : `Confirm Booking · $${slot.price}`}
         </button>
       </div>
     </div>
@@ -579,7 +736,14 @@ function SuccessSheet({
   booking,
   onClose,
 }: {
-  booking: { reference: string; date: string; time: string; price: number; players: number; paymentMethod: PaymentMethod };
+  booking: {
+    reference: string;
+    date: string;
+    time: string;
+    price: number;
+    players: number;
+    paymentMethod: PaymentMethod;
+  };
   onClose: () => void;
 }) {
   const shareData = {
@@ -621,15 +785,18 @@ function SuccessSheet({
         {formatTime12h(booking.time)} — {getSlotEndTime(booking.time, 90)}
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {COURT_NAME} · {booking.players} players · ${booking.price} — {paymentLabel(booking.paymentMethod)}
+        {COURT_NAME} · {booking.players} players · ${booking.price} —{" "}
+        {paymentLabel(booking.paymentMethod)}
       </p>
       {booking.paymentMethod === "whish" && (
         <p className="mt-2 rounded-xl bg-secondary px-4 py-3 text-xs text-secondary-foreground">
-          Send ${booking.price} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span> to complete your payment.
+          Send ${booking.price} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span> to
+          complete your payment.
         </p>
       )}
       <p className="mt-4 text-sm font-medium text-foreground">
-        Booking reference: <span className="font-display text-base font-bold">{booking.reference}</span>
+        Booking reference:{" "}
+        <span className="font-display text-base font-bold">{booking.reference}</span>
       </p>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
@@ -674,7 +841,11 @@ function SuccessSheet({
         >
           View My Bookings
         </Link>
-        <button type="button" onClick={onClose} className="text-sm font-medium text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
           Book another slot
         </button>
       </div>
@@ -689,8 +860,18 @@ function PhotoGallery() {
       <p className="text-sm text-muted-foreground">A glimpse of the court before your visit.</p>
       <div className="mt-4 grid grid-cols-2 gap-3">
         {HERO_IMAGES.map((img, i) => (
-          <div key={img.url} className={`overflow-hidden rounded-xl ${i === 0 ? "col-span-2" : ""}`}>
-            <img src={img.url} alt={img.alt} className="h-full w-full object-cover" width={600} height={400} loading="lazy" />
+          <div
+            key={img.url}
+            className={`overflow-hidden rounded-xl ${i === 0 ? "col-span-2" : ""}`}
+          >
+            <img
+              src={img.url}
+              alt={img.alt}
+              className="h-full w-full object-cover"
+              width={600}
+              height={400}
+              loading="lazy"
+            />
           </div>
         ))}
       </div>
@@ -701,11 +882,18 @@ function PhotoGallery() {
 function AboutSection() {
   return (
     <section className="py-8" id="about">
-      <h2 className="font-display text-lg font-semibold text-foreground">A court for the village</h2>
+      <h2 className="font-display text-lg font-semibold text-foreground">
+        A court for the village
+      </h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Assia Padel Court is a single outdoor court built for casual games, friendly competition, and easy evenings in the Lebanese mountains. No memberships, no app stores — just book and play.
+        Assia Padel Court is a single outdoor court built for casual games, friendly competition,
+        and easy evenings in the Lebanese mountains. No memberships, no app stores — just book and
+        play.
       </p>
-      <Link to="/about" className="mt-3 inline-flex items-center text-sm font-semibold text-primary">
+      <Link
+        to="/about"
+        className="mt-3 inline-flex items-center text-sm font-semibold text-primary"
+      >
         More about the court
         <ArrowRightIcon className="ml-1 h-4 w-4" />
       </Link>
@@ -742,9 +930,7 @@ function LocationSection() {
   return (
     <section className="py-8" id="location">
       <h2 className="font-display text-lg font-semibold text-foreground">Find us</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Assia, Batroun District, Lebanon
-      </p>
+      <p className="mt-2 text-sm text-muted-foreground">Assia, Batroun District, Lebanon</p>
       <div className="mt-3 overflow-hidden rounded-xl border border-border bg-secondary">
         <div className="flex aspect-video items-center justify-center">
           <div className="text-center">
@@ -772,7 +958,9 @@ function ContactFooter() {
       <div className="flex flex-col gap-4">
         <div>
           <p className="font-display text-lg font-semibold text-foreground">Questions?</p>
-          <p className="text-sm text-muted-foreground">Reach us directly on WhatsApp or by phone.</p>
+          <p className="text-sm text-muted-foreground">
+            Reach us directly on WhatsApp or by phone.
+          </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <a
@@ -800,7 +988,15 @@ function ContactFooter() {
 
 function ArrowRightIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M5 12h14" />
       <path d="m12 5 7 7-7 7" />
     </svg>
@@ -809,7 +1005,15 @@ function ArrowRightIcon({ className }: { className?: string }) {
 
 function CheckIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M20 6 9 17l-5-5" />
     </svg>
   );
@@ -817,7 +1021,15 @@ function CheckIcon({ className }: { className?: string }) {
 
 function LocationIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
       <circle cx="12" cy="10" r="3" />
     </svg>
