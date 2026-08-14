@@ -40,6 +40,7 @@ export type Database = {
           name: string
           notes: string | null
           payment_method: string
+          payment_status: string
           phone: string
           players: number
           price: number
@@ -57,6 +58,7 @@ export type Database = {
           name: string
           notes?: string | null
           payment_method: string
+          payment_status?: string
           phone: string
           players?: number
           price: number
@@ -74,6 +76,7 @@ export type Database = {
           name?: string
           notes?: string | null
           payment_method?: string
+          payment_status?: string
           phone?: string
           players?: number
           price?: number
@@ -110,6 +113,7 @@ export type Database = {
           name: string
           notes: string | null
           payment_method: string
+          payment_status: string
           phone: string
           players: number
           price: number
