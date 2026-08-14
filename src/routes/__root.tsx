@@ -3,6 +3,7 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  useNavigate,
   useRouter,
   HeadContent,
   Scripts,
@@ -14,6 +15,7 @@ import logoAsset from "../assets/logo-assia.png.asset.json";
 const logo = logoAsset.url;
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
+import { AccountMenu } from "@/components/AccountMenu";
 
 const SITE_URL = "https://assiapadel.com";
 const OG_IMAGE_URL = `${SITE_URL}${logo}`;
@@ -140,6 +142,7 @@ function RootComponent() {
 }
 
 function Header() {
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
 
@@ -172,13 +175,9 @@ function Header() {
           <Link to="/about" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
             About
           </Link>
-          {signedIn ? (
+          {signedIn && (
             <Link to="/admin" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
               Dashboard
-            </Link>
-          ) : (
-            <Link to="/auth" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
-              Sign in
             </Link>
           )}
           <Link
@@ -188,6 +187,7 @@ function Header() {
           >
             Book a Court
           </Link>
+          <AccountMenu />
         </nav>
 
         <button
@@ -209,16 +209,48 @@ function Header() {
             <Link to="/about" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary">
               About
             </Link>
-            <Link
-              to={signedIn ? "/admin" : "/auth"}
-              onClick={() => setMenuOpen(false)}
-              className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary"
-            >
-              {signedIn ? "Dashboard" : "Sign in"}
-            </Link>
+            {signedIn && (
+              <Link
+                to="/admin"
+                onClick={() => setMenuOpen(false)}
+                className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary"
+              >
+                Dashboard
+              </Link>
+            )}
             <Link to="/" onClick={() => setMenuOpen(false)} className="mt-2 rounded-lg bg-primary px-3 py-2.5 text-center text-base font-semibold text-primary-foreground">
               Book a Court
             </Link>
+            {signedIn ? (
+              <>
+                <Link
+                  to="/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="mt-2 rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary"
+                >
+                  Profile
+                </Link>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setMenuOpen(false);
+                    await supabase.auth.signOut();
+                    navigate({ to: "/" });
+                  }}
+                  className="rounded-lg px-3 py-2.5 text-left text-base font-medium text-destructive hover:bg-destructive/5"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/auth"
+                onClick={() => setMenuOpen(false)}
+                className="mt-2 rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary"
+              >
+                Sign in
+              </Link>
+            )}
           </nav>
         </div>
       )}
