@@ -59,3 +59,39 @@ export const setBookingPaymentStatus = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+export type RegisteredUser = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  createdAt: string;
+};
+
+export const listRegisteredUsers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<RegisteredUser[]> => {
+    const { data: isAdmin } = await context.supabase.rpc("is_admin");
+    if (isAdmin !== true) throw new Error("Not authorized");
+    // Listing every Supabase Auth user requires the service-role admin API,
+    // which the regular (RLS-bound) client can't do. Import the service-role
+    // client dynamically here so it's never bundled into client-shipped code
+    // — see the warning in client.server.ts.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+    if (error) throw error;
+    return data.users.map((u) => {
+      const metadata = (u.user_metadata ?? {}) as Record<string, unknown>;
+      const identifierType = metadata["signup_identifier_type"];
+      const identifier = metadata["signup_identifier"];
+      const name = typeof metadata["full_name"] === "string" ? metadata["full_name"] : null;
+      const isPhoneSignup = identifierType === "phone" && typeof identifier === "string";
+      return {
+        id: u.id,
+        name,
+        email: isPhoneSignup ? null : (u.email ?? null),
+        phone: isPhoneSignup ? (identifier as string) : null,
+        createdAt: u.created_at,
+      };
+    });
+  });

@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminCalendar } from "@/components/AdminCalendar";
 import { AdminRevenue } from "@/components/AdminRevenue";
+import { UsersDirectory } from "@/components/UsersDirectory";
 import {
   getIsAdmin,
   listAllBookings,
@@ -137,6 +138,12 @@ function AdminPage() {
       {!bookingsQuery.isLoading && (
         <div className="mt-6">
           <AdminRevenue bookings={bookings} />
+        </div>
+      )}
+
+      {!bookingsQuery.isLoading && (
+        <div className="mt-6">
+          <UsersDirectory bookings={bookings} />
         </div>
       )}
 
