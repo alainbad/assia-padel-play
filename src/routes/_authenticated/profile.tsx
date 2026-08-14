@@ -107,10 +107,10 @@ function ProfilePage() {
 
       <div className="mt-8 flex flex-col gap-2">
         <Link
-          to="/admin"
+          to={adminQuery.data?.isAdmin ? "/admin" : "/bookings"}
           className="rounded-lg border border-input px-4 py-2.5 text-center text-sm font-semibold text-foreground hover:bg-secondary"
         >
-          Back to dashboard
+          {adminQuery.data?.isAdmin ? "Back to dashboard" : "Go to my bookings"}
         </Link>
         <button
           type="button"
