@@ -14,13 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admins: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          court_name: string
+          created_at: string
+          date: string
+          duration: number
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          payment_method: string
+          phone: string
+          players: number
+          price: number
+          reference: string
+          status: string
+          time: string
+        }
+        Insert: {
+          court_name?: string
+          created_at?: string
+          date: string
+          duration?: number
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          payment_method: string
+          phone: string
+          players?: number
+          price: number
+          reference: string
+          status?: string
+          time: string
+        }
+        Update: {
+          court_name?: string
+          created_at?: string
+          date?: string
+          duration?: number
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          payment_method?: string
+          phone?: string
+          players?: number
+          price?: number
+          reference?: string
+          status?: string
+          time?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cancel_booking_by_reference: {
+        Args: { p_id: string; p_reference: string }
+        Returns: undefined
+      }
+      get_booked_times: {
+        Args: { p_date: string }
+        Returns: {
+          time: string
+        }[]
+      }
+      get_booking_by_reference: {
+        Args: { p_id: string; p_reference: string }
+        Returns: {
+          court_name: string
+          created_at: string
+          date: string
+          duration: number
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          payment_method: string
+          phone: string
+          players: number
+          price: number
+          reference: string
+          status: string
+          time: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "bookings"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
