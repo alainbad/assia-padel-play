@@ -10,7 +10,8 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import logo from "../assets/logo-padel.png";
+import logoAsset from "../assets/logo-assia.png.asset.json";
+const logo = logoAsset.url;
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -152,7 +153,7 @@ function Header() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm safe-area-inset-top">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
         <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-foreground">
-          <img src={logo} alt="Assia Padel Court logo" className="h-8 w-8 object-contain" width={32} height={32} />
+          <img src={logo} alt="Assia Padel Court logo" className="h-10 w-10 object-contain" width={40} height={40} />
           <span>Assia Padel</span>
         </Link>
 
