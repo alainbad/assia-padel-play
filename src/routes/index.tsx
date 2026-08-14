@@ -799,15 +799,27 @@ function LocationSection() {
       <p className="mt-2 text-sm text-muted-foreground">
         Assia, Batroun District, Lebanon
       </p>
-      <div className="mt-3 overflow-hidden rounded-xl border border-border bg-secondary">
-        <div className="flex aspect-video items-center justify-center">
-          <div className="text-center">
-            <LocationIcon className="mx-auto h-8 w-8 text-primary" />
-            <p className="mt-2 text-sm font-medium text-foreground">Assia Padel Court</p>
-            <p className="text-xs text-muted-foreground">Open in Google Maps</p>
+      <a
+        href="https://www.google.com/maps/dir/?api=1&destination=34.225754,35.779507"
+        target="_blank"
+        rel="noreferrer"
+        className="mt-3 block overflow-hidden rounded-xl border border-border"
+      >
+        <div className="relative flex aspect-video items-center justify-center">
+          <img
+            src={hero1.url}
+            alt="Assia Padel Court"
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-foreground/45" />
+          <div className="relative text-center">
+            <LocationIcon className="mx-auto h-8 w-8 text-primary-foreground drop-shadow" />
+            <p className="mt-2 text-sm font-semibold text-primary-foreground drop-shadow">Assia Padel Court</p>
+            <p className="text-xs text-primary-foreground/80 drop-shadow">Open in Google Maps</p>
           </div>
         </div>
-      </div>
+      </a>
       <a
         href="https://www.google.com/maps/dir/?api=1&destination=34.225754,35.779507"
         target="_blank"
