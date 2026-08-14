@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { getIsAdmin } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -18,9 +20,12 @@ function avatarUrlFrom(metadata: Record<string, unknown> | null | undefined): st
 function ProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const checkAdmin = useServerFn(getIsAdmin);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const adminQuery = useQuery({ queryKey: ["is-admin"], queryFn: () => checkAdmin() });
 
   const userQuery = useQuery({
     queryKey: ["current-user"],
@@ -102,10 +107,10 @@ function ProfilePage() {
 
       <div className="mt-8 flex flex-col gap-2">
         <Link
-          to="/admin"
+          to={adminQuery.data?.isAdmin ? "/admin" : "/bookings"}
           className="rounded-lg border border-input px-4 py-2.5 text-center text-sm font-semibold text-foreground hover:bg-secondary"
         >
-          Back to dashboard
+          {adminQuery.data?.isAdmin ? "Back to dashboard" : "Go to my bookings"}
         </Link>
         <button
           type="button"
