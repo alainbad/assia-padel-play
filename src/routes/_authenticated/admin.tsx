@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
 import { supabase } from "@/integrations/supabase/client";
+import { AdminCalendar } from "@/components/AdminCalendar";
 import { getIsAdmin, listAllBookings, setBookingStatus } from "@/lib/admin.functions";
 import { formatDisplayDate, formatTime12h, paymentLabel } from "@/lib/bookings";
 
@@ -99,6 +100,12 @@ function AdminPage() {
 
       {bookingsQuery.isLoading && (
         <p className="mt-8 text-sm text-muted-foreground">Loading reservations…</p>
+      )}
+
+      {!bookingsQuery.isLoading && (
+        <div className="mt-6">
+          <AdminCalendar bookings={bookings} />
+        </div>
       )}
 
       {!bookingsQuery.isLoading && bookings.length === 0 && (
