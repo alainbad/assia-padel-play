@@ -20,9 +20,12 @@ function avatarUrlFrom(metadata: Record<string, unknown> | null | undefined): st
 function ProfilePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const checkAdmin = useServerFn(getIsAdmin);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const adminQuery = useQuery({ queryKey: ["is-admin"], queryFn: () => checkAdmin() });
 
   const userQuery = useQuery({
     queryKey: ["current-user"],
