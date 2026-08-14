@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ALL_SLOTS,
   COURT_NAME,
+  DEPOSIT_AMOUNT,
   SLOT_DURATION,
   addBooking,
   syncBookingToBackend,
@@ -145,8 +146,8 @@ function BookingSection() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetState, setSheetState] = useState<"summary" | "details" | "success">("summary");
-  const [confirmedBooking, setConfirmedBooking] = useState<{ reference: string; date: string; time: string; price: number; players: number; paymentMethod: PaymentMethod } | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court" as PaymentMethod });
+  const [confirmedBooking, setConfirmedBooking] = useState<{ reference: string; date: string; time: string; price: number; players: number; paymentMethod: PaymentMethod; whishAmount: number } | null>(null);
+  const [form, setForm] = useState({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court" as PaymentMethod, whishAmountOption: "full" as "deposit" | "full" });
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
@@ -186,7 +187,8 @@ function BookingSection() {
       ...(form.notes && { notes: form.notes }),
     });
     void syncBookingToBackend(booking);
-    setConfirmedBooking({ reference: booking.reference, date: selectedDateKey, time: selectedTime, price: booking.price, players: form.players, paymentMethod: form.paymentMethod });
+    const whishAmount = form.whishAmountOption === "deposit" ? DEPOSIT_AMOUNT : booking.price;
+    setConfirmedBooking({ reference: booking.reference, date: selectedDateKey, time: selectedTime, price: booking.price, players: form.players, paymentMethod: form.paymentMethod, whishAmount });
     setSheetState("success");
     setUpcomingCount(getBookingsByStatus().upcoming.length);
   };
@@ -194,7 +196,7 @@ function BookingSection() {
   const handleClose = () => {
     setSheetOpen(false);
     setSelectedTime(null);
-    setForm({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court" });
+    setForm({ name: "", phone: "", email: "", players: 4, notes: "", paymentMethod: "court", whishAmountOption: "full" });
   };
 
   const selectedSlot = ALL_SLOTS.find((s) => s.time === selectedTime) || null;
@@ -428,7 +430,15 @@ function DetailsSheet({
 }: {
   dateKey: string;
   slot: TimeSlot;
-  form: { name: string; phone: string; email: string; players: number; notes: string; paymentMethod: PaymentMethod };
+  form: {
+    name: string;
+    phone: string;
+    email: string;
+    players: number;
+    notes: string;
+    paymentMethod: PaymentMethod;
+    whishAmountOption: "deposit" | "full";
+  };
   setForm: React.Dispatch<React.SetStateAction<typeof form>>;
   onConfirm: () => void;
   onBack: () => void;
@@ -491,9 +501,40 @@ function DetailsSheet({
             })}
           </div>
           {form.paymentMethod === "whish" && (
-            <p className="mt-2 rounded-xl bg-secondary px-4 py-3 text-xs text-secondary-foreground">
-              Send ${slot.price} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span> and keep the confirmation. Your slot is held until then.
-            </p>
+            <div className="mt-2 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    { id: "deposit" as const, label: "Pay deposit", amount: DEPOSIT_AMOUNT },
+                    { id: "full" as const, label: "Pay full amount", amount: slot.price },
+                  ]
+                ).map((opt) => {
+                  const active = form.whishAmountOption === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, whishAmountOption: opt.id }))}
+                      aria-pressed={active}
+                      className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                        active ? "border-primary bg-primary/5" : "border-border bg-background hover:bg-secondary"
+                      }`}
+                    >
+                      <span className="block text-xs font-semibold text-foreground">{opt.label}</span>
+                      <span className="block text-sm font-bold text-foreground">${opt.amount}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="rounded-xl bg-secondary px-4 py-3 text-xs text-secondary-foreground">
+                Send ${form.whishAmountOption === "deposit" ? DEPOSIT_AMOUNT : slot.price} by Whish to{" "}
+                <span className="font-semibold">{WHISH_NUMBER}</span> and keep the confirmation. Your slot is held
+                until then.
+                {form.whishAmountOption === "deposit" && (
+                  <> The remaining ${slot.price - DEPOSIT_AMOUNT} is due at the court.</>
+                )}
+              </p>
+            </div>
           )}
         </div>
 
@@ -581,7 +622,15 @@ function SuccessSheet({
   booking,
   onClose,
 }: {
-  booking: { reference: string; date: string; time: string; price: number; players: number; paymentMethod: PaymentMethod };
+  booking: {
+    reference: string;
+    date: string;
+    time: string;
+    price: number;
+    players: number;
+    paymentMethod: PaymentMethod;
+    whishAmount: number;
+  };
   onClose: () => void;
 }) {
   const shareData = {
@@ -627,7 +676,11 @@ function SuccessSheet({
       </p>
       {booking.paymentMethod === "whish" && (
         <p className="mt-2 rounded-xl bg-secondary px-4 py-3 text-xs text-secondary-foreground">
-          Send ${booking.price} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span> to complete your payment.
+          Send ${booking.whishAmount} by Whish to <span className="font-semibold">{WHISH_NUMBER}</span> to complete
+          your payment.
+          {booking.whishAmount < booking.price && (
+            <> The remaining ${booking.price - booking.whishAmount} is due at the court.</>
+          )}
         </p>
       )}
       <p className="mt-4 text-sm font-medium text-foreground">
