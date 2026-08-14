@@ -644,7 +644,7 @@ function SuccessSheet({
           Add to Calendar
         </a>
         <a
-          href="https://maps.google.com/?q=Assia+Lebanon"
+          href="https://maps.app.goo.gl/1i3xEqBdh9n3gvMM8?g_st=iw"
           target="_blank"
           rel="noreferrer"
           className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
@@ -751,13 +751,13 @@ function LocationSection() {
         <div className="flex aspect-video items-center justify-center">
           <div className="text-center">
             <LocationIcon className="mx-auto h-8 w-8 text-primary" />
-            <p className="mt-2 text-sm font-medium text-foreground">Map loading</p>
-            <p className="text-xs text-muted-foreground">Directions available on request</p>
+            <p className="mt-2 text-sm font-medium text-foreground">Assia Padel Court</p>
+            <p className="text-xs text-muted-foreground">Open in Google Maps</p>
           </div>
         </div>
       </div>
       <a
-        href="https://maps.google.com/?q=Assia+Lebanon"
+        href="https://maps.app.goo.gl/1i3xEqBdh9n3gvMM8?g_st=iw"
         target="_blank"
         rel="noreferrer"
         className="mt-3 inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"

@@ -71,7 +71,7 @@ function AboutPage() {
           Assia, Batroun District, Lebanon
         </p>
         <a
-          href="https://maps.google.com/?q=Assia+Lebanon"
+          href="https://maps.app.goo.gl/1i3xEqBdh9n3gvMM8?g_st=iw"
           target="_blank"
           rel="noreferrer"
           className="mt-3 inline-flex items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
