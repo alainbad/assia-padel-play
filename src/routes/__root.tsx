@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import logo from "../assets/logo-padel.png";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -131,6 +132,21 @@ function RootComponent() {
 
 function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setSignedIn(!!data.session);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(!!session);
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm safe-area-inset-top">
@@ -141,15 +157,21 @@ function Header() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-          <Link to="/" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
-            Book
-          </Link>
           <Link to="/bookings" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
             My Bookings
           </Link>
           <Link to="/about" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
             About
           </Link>
+          {signedIn ? (
+            <Link to="/admin" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
+              Dashboard
+            </Link>
+          ) : (
+            <Link to="/auth" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
+              Sign in
+            </Link>
+          )}
           <Link
             to="/"
             activeProps={{ className: "bg-primary/90" }}
@@ -172,14 +194,18 @@ function Header() {
       {menuOpen && (
         <div className="border-t border-border bg-background px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
-            <Link to="/" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary">
-              Book
-            </Link>
             <Link to="/bookings" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary">
               My Bookings
             </Link>
             <Link to="/about" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary">
               About
+            </Link>
+            <Link
+              to={signedIn ? "/admin" : "/auth"}
+              onClick={() => setMenuOpen(false)}
+              className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary"
+            >
+              {signedIn ? "Dashboard" : "Sign in"}
             </Link>
             <Link to="/" onClick={() => setMenuOpen(false)} className="mt-2 rounded-lg bg-primary px-3 py-2.5 text-center text-base font-semibold text-primary-foreground">
               Book a Court

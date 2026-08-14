@@ -5,6 +5,7 @@ import {
   COURT_NAME,
   SLOT_DURATION,
   addBooking,
+  syncBookingToBackend,
   formatDisplayDate,
   formatTime12h,
   generateDayOptions,
@@ -184,6 +185,7 @@ function BookingSection() {
       ...(form.email && { email: form.email }),
       ...(form.notes && { notes: form.notes }),
     });
+    void syncBookingToBackend(booking);
     setConfirmedBooking({ reference: booking.reference, date: selectedDateKey, time: selectedTime, price: booking.price, players: form.players, paymentMethod: form.paymentMethod });
     setSheetState("success");
     setUpcomingCount(getBookingsByStatus().upcoming.length);
