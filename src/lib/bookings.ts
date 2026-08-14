@@ -47,8 +47,8 @@ export type TimeSlot = {
 
 export const SLOT_DURATION = 90;
 export const COURT_NAME = "Court 1";
-export const COURT_PRICE = 40;
-export const DEPOSIT_AMOUNT = 20;
+export const COURT_PRICE = 20;
+export const DEPOSIT_AMOUNT = 10;
 
 export const ALL_SLOTS: TimeSlot[] = [
   {
