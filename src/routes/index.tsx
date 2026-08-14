@@ -608,7 +608,7 @@ function SuccessSheet({
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0];
     const title = encodeURIComponent("Padel at Assia Padel Court");
     const details = encodeURIComponent(`Court booking. Reference: ${booking.reference}`);
-    const location = encodeURIComponent("Assia, Lebanon");
+    const location = encodeURIComponent("34.225754,35.779507");
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&dates=${fmt(start)}/${fmt(end)}&text=${title}&details=${details}&location=${location}`;
   }, [booking]);
 
@@ -644,7 +644,7 @@ function SuccessSheet({
           Add to Calendar
         </a>
         <a
-          href="https://maps.app.goo.gl/1i3xEqBdh9n3gvMM8?g_st=iw"
+          href="https://www.google.com/maps/dir/?api=1&destination=34.225754,35.779507"
           target="_blank"
           rel="noreferrer"
           className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
@@ -757,7 +757,7 @@ function LocationSection() {
         </div>
       </div>
       <a
-        href="https://maps.app.goo.gl/1i3xEqBdh9n3gvMM8?g_st=iw"
+        href="https://www.google.com/maps/dir/?api=1&destination=34.225754,35.779507"
         target="_blank"
         rel="noreferrer"
         className="mt-3 inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
