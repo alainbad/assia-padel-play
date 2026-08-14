@@ -58,8 +58,8 @@ function AdminLoginPage() {
 
       {!isSupabaseConfigured && (
         <p className="mt-4 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Supabase isn't configured yet. Set <code>VITE_SUPABASE_URL</code> and{" "}
-          <code>VITE_SUPABASE_ANON_KEY</code>.
+          Supabase isn't configured yet. Connect Supabase in Lovable Cloud, or set{" "}
+          <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>.
         </p>
       )}
 

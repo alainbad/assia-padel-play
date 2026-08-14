@@ -187,8 +187,9 @@ function AdminDashboardPage() {
               Admin dashboard not configured
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>, run the
-              migration in <code>supabase/migrations</code>, then create an admin user.
+              Connect Supabase in Lovable Cloud (or set <code>VITE_SUPABASE_URL</code> and{" "}
+              <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>), run the migration in{" "}
+              <code>supabase/migrations</code>, then create an admin user.
             </p>
           </>
         ) : (
