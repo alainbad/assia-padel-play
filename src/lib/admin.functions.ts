@@ -24,8 +24,8 @@ export const listAllBookings = createServerFn({ method: "GET" })
   });
 
 export const setBookingStatus = createServerFn({ method: "POST" })
-  .inputValidator((data: { id: string; status: "upcoming" | "completed" | "cancelled" }) => data)
   .middleware([requireSupabaseAuth])
+  .inputValidator((data: { id: string; status: "upcoming" | "completed" | "cancelled" }) => data)
   .handler(async ({ context, data }) => {
     const { data: isAdmin } = await context.supabase.rpc("is_admin");
     if (isAdmin !== true) throw new Error("Not authorized");
