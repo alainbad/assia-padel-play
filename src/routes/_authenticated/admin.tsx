@@ -5,14 +5,30 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminCalendar } from "@/components/AdminCalendar";
 import { AdminRevenue } from "@/components/AdminRevenue";
-import { getIsAdmin, listAllBookings, setBookingStatus } from "@/lib/admin.functions";
-import { formatDisplayDate, formatTime12h, paymentLabel } from "@/lib/bookings";
+import {
+  getIsAdmin,
+  listAllBookings,
+  setBookingStatus,
+  setBookingPaymentStatus,
+} from "@/lib/admin.functions";
+import {
+  DEPOSIT_AMOUNT,
+  formatDisplayDate,
+  formatTime12h,
+  paymentLabel,
+  paymentStatusLabel,
+  type PaymentStatus,
+} from "@/lib/bookings";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
       { title: "Admin dashboard — Assia Padel Court" },
-      { name: "description", content: "Manage every reservation for Assia Padel Court: upcoming slots, contact details and payment method." },
+      {
+        name: "description",
+        content:
+          "Manage every reservation for Assia Padel Court: upcoming slots, contact details and payment method.",
+      },
       { property: "og:title", content: "Admin dashboard — Assia Padel Court" },
       { property: "og:description", content: "Manage every reservation for Assia Padel Court." },
       { property: "og:type", content: "website" },
@@ -22,12 +38,16 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
   errorComponent: () => (
     <div className="mx-auto max-w-md px-4 py-16 text-center">
-      <h1 className="font-display text-xl font-semibold text-foreground">Couldn't load the dashboard</h1>
+      <h1 className="font-display text-xl font-semibold text-foreground">
+        Couldn't load the dashboard
+      </h1>
       <p className="mt-2 text-sm text-muted-foreground">Please refresh and try again.</p>
     </div>
   ),
   notFoundComponent: () => (
-    <div className="mx-auto max-w-md px-4 py-16 text-center text-sm text-muted-foreground">Not found.</div>
+    <div className="mx-auto max-w-md px-4 py-16 text-center text-sm text-muted-foreground">
+      Not found.
+    </div>
   ),
 });
 
@@ -37,6 +57,7 @@ function AdminPage() {
   const checkAdmin = useServerFn(getIsAdmin);
   const fetchBookings = useServerFn(listAllBookings);
   const updateStatus = useServerFn(setBookingStatus);
+  const updatePaymentStatus = useServerFn(setBookingPaymentStatus);
 
   const adminQuery = useQuery({ queryKey: ["is-admin"], queryFn: () => checkAdmin() });
   const bookingsQuery = useQuery({
@@ -51,6 +72,12 @@ function AdminPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-bookings"] }),
   });
 
+  const paymentMutation = useMutation({
+    mutationFn: (vars: { id: string; paymentStatus: PaymentStatus }) =>
+      updatePaymentStatus({ data: vars }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-bookings"] }),
+  });
+
   async function handleSignOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
@@ -59,7 +86,9 @@ function AdminPage() {
   }
 
   if (adminQuery.isLoading) {
-    return <div className="mx-auto max-w-3xl px-4 py-16 text-sm text-muted-foreground">Loading…</div>;
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16 text-sm text-muted-foreground">Loading…</div>
+    );
   }
 
   if (!adminQuery.data?.isAdmin) {
@@ -86,7 +115,9 @@ function AdminPage() {
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Court dashboard</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+            Court dashboard
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {active.length} active {active.length === 1 ? "reservation" : "reservations"}
           </p>
@@ -134,7 +165,8 @@ function AdminPage() {
                   {b.email ? ` · ${b.email}` : ""}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {b.players} players · ${b.price} · {paymentLabel(b.payment_method as "court" | "whish")} · Ref {b.reference}
+                  {b.players} players · ${b.price} ·{" "}
+                  {paymentLabel(b.payment_method as "court" | "whish")} · Ref {b.reference}
                 </p>
                 {b.notes && <p className="mt-1 text-xs text-muted-foreground">Notes: {b.notes}</p>}
               </div>
@@ -160,6 +192,47 @@ function AdminPage() {
                   </button>
                 )}
               </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                  b.payment_status === "paid"
+                    ? "bg-primary/10 text-primary"
+                    : b.payment_status === "deposit"
+                      ? "bg-secondary text-muted-foreground"
+                      : "bg-destructive/10 text-destructive"
+                }`}
+              >
+                {paymentStatusLabel(b.payment_status)}
+              </span>
+              {b.payment_status === "unpaid" && (
+                <button
+                  onClick={() => paymentMutation.mutate({ id: b.id, paymentStatus: "deposit" })}
+                  disabled={paymentMutation.isPending}
+                  className="rounded-lg border border-input px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
+                >
+                  Deposit received (${DEPOSIT_AMOUNT})
+                </button>
+              )}
+              {b.payment_status !== "paid" && (
+                <button
+                  onClick={() => paymentMutation.mutate({ id: b.id, paymentStatus: "paid" })}
+                  disabled={paymentMutation.isPending}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  Full amount received
+                </button>
+              )}
+              {b.payment_status !== "unpaid" && (
+                <button
+                  onClick={() => paymentMutation.mutate({ id: b.id, paymentStatus: "unpaid" })}
+                  disabled={paymentMutation.isPending}
+                  className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Reset
+                </button>
+              )}
             </div>
           </div>
         ))}
