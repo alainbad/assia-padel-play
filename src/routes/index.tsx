@@ -398,7 +398,7 @@ function SummarySheet({
         </p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 px-1">
         <button
           type="button"
           onClick={onClose}
