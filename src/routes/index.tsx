@@ -772,7 +772,6 @@ function FacilitiesSection() {
   const facilities = [
     "Outdoor court with floodlights",
     "Parking on-site",
-    "Changing area & showers",
     "Racket & ball rental",
     "Drinks available",
     "Seating area",
