@@ -163,8 +163,8 @@ function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm safe-area-inset-top">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
-        <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-foreground">
-          <img src={logo} alt="Assia Padel Court logo" className="h-10 w-10 object-contain" width={40} height={40} />
+        <Link to="/" className="flex items-center gap-2.5 font-display text-lg font-bold tracking-tight text-foreground">
+          <img src={logo} alt="Assia Padel Court logo" className="h-12 w-12 object-contain" width={48} height={48} />
           <span>Assia Padel</span>
         </Link>
 
