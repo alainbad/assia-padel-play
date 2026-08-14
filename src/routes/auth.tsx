@@ -49,6 +49,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [signupName, setSignupName] = useState("");
   const [signupIdentifier, setSignupIdentifier] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirm, setSignupConfirm] = useState("");
@@ -85,7 +86,12 @@ function AuthPage() {
     setSignupError(null);
     setSignupNotice(null);
 
+    const trimmedName = signupName.trim();
     const trimmed = signupIdentifier.trim();
+    if (!trimmedName) {
+      setSignupError("Enter your name.");
+      return;
+    }
     if (!trimmed) {
       setSignupError("Enter an email or phone number.");
       return;
@@ -107,6 +113,7 @@ function AuthPage() {
         password: signupPassword,
         options: {
           data: {
+            full_name: trimmedName,
             signup_identifier: trimmed,
             signup_identifier_type: isEmail ? "email" : "phone",
           },
@@ -237,6 +244,21 @@ function AuthPage() {
 
           <form onSubmit={handleSignUp} className="mt-8 space-y-4">
             <div>
+              <label htmlFor="signup-name" className="text-sm font-medium text-foreground">
+                Full name
+              </label>
+              <input
+                id="signup-name"
+                value={signupName}
+                onChange={(e) => setSignupName(e.target.value)}
+                autoComplete="name"
+                required
+                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base text-foreground outline-none focus:border-primary"
+                placeholder="Karim Haddad"
+              />
+            </div>
+
+            <div>
               <label htmlFor="signup-identifier" className="text-sm font-medium text-foreground">
                 Email or phone number
               </label>
@@ -293,7 +315,13 @@ function AuthPage() {
 
             <button
               type="submit"
-              disabled={signupLoading || !signupIdentifier || !signupPassword || !signupConfirm}
+              disabled={
+                signupLoading ||
+                !signupName ||
+                !signupIdentifier ||
+                !signupPassword ||
+                !signupConfirm
+              }
               className="w-full rounded-lg bg-primary px-4 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {signupLoading ? "Creating account…" : "Sign up"}
