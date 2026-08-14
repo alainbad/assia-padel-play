@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   amountCollected,
   amountPending,
@@ -26,16 +26,82 @@ function csvEscape(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
+function shortDate(dateKey: string): string {
+  return new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function startOfWeek(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = (d.getDay() + 6) % 7; // Monday = 0
+  return addDays(d, -day);
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
 export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  function applyPreset(preset: "all" | "week" | "month") {
+    if (preset === "all") {
+      setFromDate("");
+      setToDate("");
+      return;
+    }
+    const now = new Date();
+    if (preset === "week") {
+      const start = startOfWeek(now);
+      setFromDate(formatDateKey(start));
+      setToDate(formatDateKey(addDays(start, 6)));
+    } else {
+      setFromDate(formatDateKey(startOfMonth(now)));
+      setToDate(formatDateKey(endOfMonth(now)));
+    }
+  }
+
+  const inRange = useMemo(() => {
+    return (dateKey: string) => {
+      if (fromDate && dateKey < fromDate) return false;
+      if (toDate && dateKey > toDate) return false;
+      return true;
+    };
+  }, [fromDate, toDate]);
+
+  const rangeLabel =
+    !fromDate && !toDate
+      ? "All time"
+      : `${fromDate ? shortDate(fromDate) : "…"} – ${toDate ? shortDate(toDate) : "…"}`;
+
+  const filtered = useMemo(
+    () => bookings.filter((b) => b.status !== "cancelled" && inRange(b.date)),
+    [bookings, inRange],
+  );
+
   const stats = useMemo(() => {
-    const active = bookings.filter((b) => b.status !== "cancelled");
     let collected = 0;
     let pending = 0;
     let collectedCourt = 0;
     let collectedWhish = 0;
     let pendingCourt = 0;
     let pendingWhish = 0;
-    for (const b of active) {
+    for (const b of filtered) {
       const isWhish = b.payment_method === "whish";
       const gotten = amountCollected(b.price, b.payment_status);
       const owed = amountPending(b.price, b.payment_status);
@@ -58,16 +124,17 @@ export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
       pendingCourt,
       pendingWhish,
     };
-  }, [bookings]);
+  }, [filtered]);
 
   function downloadReport() {
-    const active = [...bookings]
-      .filter((b) => b.status !== "cancelled")
-      .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+    const sorted = [...filtered].sort((a, b) =>
+      `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`),
+    );
 
     const lines: string[] = [
       "Assia Padel Court — Money Report",
       `Generated,${new Date().toLocaleString()}`,
+      `Range,${rangeLabel}`,
       "",
       "Summary",
       `Total Collected,${stats.collected}`,
@@ -79,7 +146,7 @@ export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
       `Pending - Whish,${stats.pendingWhish}`,
       "",
       "Date,Time,Customer,Phone,Payment Method,Price,Payment Status,Amount Collected,Amount Pending,Reference",
-      ...active.map((b) =>
+      ...sorted.map((b) =>
         [
           b.date,
           formatTime12h(b.time),
@@ -93,13 +160,21 @@ export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
           b.reference,
         ].join(","),
       ),
+      "",
+      `Totals for ${rangeLabel}`,
+      `Total Cash on Hand,${stats.collected}`,
+      `Total Pending Cash,${stats.pending}`,
     ];
 
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+    const suffix =
+      fromDate || toDate
+        ? `${fromDate || "start"}_to_${toDate || "now"}`
+        : formatDateKey(new Date());
     a.href = url;
-    a.download = `assia-padel-money-report-${formatDateKey(new Date())}.csv`;
+    a.download = `assia-padel-money-report-${suffix}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -115,12 +190,63 @@ export function AdminRevenue({ bookings }: { bookings: RevenueBooking[] }) {
             Based on payment status marked per booking below — not automatic.
           </p>
         </div>
-        <button
-          onClick={downloadReport}
-          className="rounded-lg border border-input px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
-        >
-          Download report (CSV)
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              onClick={() => setRangeOpen((v) => !v)}
+              className="rounded-lg border border-input px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+            >
+              {rangeLabel} ▾
+            </button>
+            {rangeOpen && (
+              <div className="absolute right-0 top-full z-10 mt-2 w-72 rounded-xl border border-border bg-card p-3 shadow-lg">
+                <div className="flex flex-wrap gap-1.5">
+                  {(["all", "week", "month"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => applyPreset(p)}
+                      className="rounded-lg border border-input px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary"
+                    >
+                      {p === "all" ? "All time" : p === "week" ? "This week" : "This month"}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-muted-foreground">From</span>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="mt-0.5 w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-medium text-muted-foreground">To</span>
+                    <input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="mt-0.5 w-full rounded-lg border border-input bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </label>
+                </div>
+                <button
+                  onClick={() => setRangeOpen(false)}
+                  className="mt-3 w-full rounded-lg bg-primary py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={downloadReport}
+            className="rounded-lg border border-input px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+          >
+            Download report (CSV)
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
