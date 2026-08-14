@@ -1,14 +1,16 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  useLocation,
   useNavigate,
   useRouter,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import appCss from "../styles.css?url";
 import logoAsset from "../assets/logo-assia.png.asset.json";
@@ -16,6 +18,8 @@ const logo = logoAsset.url;
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountMenu } from "@/components/AccountMenu";
+import { Toaster } from "@/components/ui/sonner";
+import { formatDisplayDate, formatTime12h } from "@/lib/bookings";
 
 const SITE_URL = "https://assiapadel.com";
 const OG_IMAGE_URL = `${SITE_URL}${logo}`;
@@ -137,28 +141,75 @@ function RootComponent() {
           <Outlet />
         </main>
       </div>
+      <Toaster position="top-center" />
     </QueryClientProvider>
   );
 }
 
 function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [newBookingsCount, setNewBookingsCount] = useState(0);
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) setSignedIn(!!data.session);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSignedIn(!!session);
+
+    async function refreshAuthState() {
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+      setSignedIn(!!data.session);
+      if (!data.session) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data: adminCheck } = await supabase.rpc("is_admin");
+      if (active) setIsAdmin(adminCheck === true);
+    }
+
+    void refreshAuthState();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      void refreshAuthState();
     });
     return () => {
       active = false;
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  // Live "new booking" notification for admins: Realtime delivery is itself
+  // gated by the "Admins can view all bookings" RLS policy, so a non-admin
+  // subscribing to this channel receives nothing even if this ran for them.
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const channel = supabase
+      .channel("admin-new-bookings")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "bookings" },
+        (payload) => {
+          const booking = payload.new as { name: string; date: string; time: string };
+          toast.success(
+            `New booking: ${booking.name} — ${formatDisplayDate(booking.date)} at ${formatTime12h(booking.time)}`,
+          );
+          setNewBookingsCount((c) => c + 1);
+          void queryClient.invalidateQueries({ queryKey: ["admin-bookings"] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin, queryClient]);
+
+  useEffect(() => {
+    if (location.pathname === "/admin") setNewBookingsCount(0);
+  }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-sm safe-area-inset-top">
@@ -176,8 +227,13 @@ function Header() {
             About
           </Link>
           {signedIn && (
-            <Link to="/admin" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
+            <Link to="/admin" activeProps={{ className: "text-foreground" }} className="relative text-muted-foreground transition-colors hover:text-foreground">
               Dashboard
+              {newBookingsCount > 0 && (
+                <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                  {newBookingsCount}
+                </span>
+              )}
             </Link>
           )}
           <Link
@@ -213,9 +269,14 @@ function Header() {
               <Link
                 to="/admin"
                 onClick={() => setMenuOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary"
+                className="flex items-center justify-between rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary"
               >
                 Dashboard
+                {newBookingsCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-bold text-destructive-foreground">
+                    {newBookingsCount}
+                  </span>
+                )}
               </Link>
             )}
             <Link to="/" onClick={() => setMenuOpen(false)} className="mt-2 rounded-lg bg-primary px-3 py-2.5 text-center text-base font-semibold text-primary-foreground">
