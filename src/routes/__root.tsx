@@ -11,7 +11,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import logoAsset from "../assets/logo-assia.png.asset.json";
+import logoAsset from "../assets/logo-assia-2.png.asset.json";
 const logo = logoAsset.url;
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
