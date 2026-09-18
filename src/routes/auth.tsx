@@ -269,7 +269,7 @@ function AuthPage() {
                 autoComplete="email"
                 required
                 className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base text-foreground outline-none focus:border-primary"
-                placeholder="you@example.com or +961 71 234 567"
+                placeholder="you@example.com or +961 3 414 477"
               />
             </div>
 
