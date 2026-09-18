@@ -86,7 +86,7 @@ function AboutPage() {
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <a
-            href="https://wa.me/96171234567"
+            href="https://wa.me/9613414477"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
@@ -94,10 +94,10 @@ function AboutPage() {
             WhatsApp
           </a>
           <a
-            href="tel:+96171234567"
+            href="tel:+9613414477"
             className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
           >
-            Call +961 71 234 567
+            Call +961 3 414 477
           </a>
         </div>
       </section>

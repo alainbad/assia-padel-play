@@ -29,7 +29,7 @@ export const PAYMENT_METHODS: { id: PaymentMethod; label: string; description: s
   },
 ];
 
-export const WHISH_NUMBER = "+961 71 234 567";
+export const WHISH_NUMBER = "+961 3 414 477";
 
 export function paymentLabel(method: PaymentMethod | undefined): string {
   return method === "whish" ? "Pay by Whish" : "Pay at the court";

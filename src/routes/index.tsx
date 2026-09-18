@@ -547,7 +547,7 @@ function DetailsSheet({
             type="tel"
             value={form.phone}
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-            placeholder="+961 71 234 567"
+            placeholder="+961 3 414 477"
             className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
           <p className="mt-1 text-xs text-muted-foreground">We may contact you about your booking.</p>
@@ -712,7 +712,7 @@ function SuccessSheet({
           Share Booking
         </button>
         <a
-          href="https://wa.me/96171234567?text=Hello, I have a booking at Assia Padel Court"
+          href="https://wa.me/9613414477?text=Hello, I have a booking at Assia Padel Court"
           target="_blank"
           rel="noreferrer"
           className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
@@ -842,7 +842,7 @@ function ContactFooter() {
         </div>
         <div className="flex flex-wrap gap-3">
           <a
-            href="https://wa.me/96171234567"
+            href="https://wa.me/9613414477"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
@@ -850,10 +850,10 @@ function ContactFooter() {
             Contact on WhatsApp
           </a>
           <a
-            href="tel:+96171234567"
+            href="tel:+9613414477"
             className="inline-flex items-center justify-center rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
           >
-            Call +961 71 234 567
+            Call +961 3 414 477
           </a>
         </div>
         <p className="text-xs text-muted-foreground">
