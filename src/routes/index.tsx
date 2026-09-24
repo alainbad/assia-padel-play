@@ -26,12 +26,18 @@ import hero3 from "@/assets/hero-3.jpg.asset.json";
 import hero4 from "@/assets/hero-4.jpg.asset.json";
 import hero5 from "@/assets/hero-5.jpg.asset.json";
 
-const HERO_IMAGES = [
+const COURT_IMAGES = [
   { url: hero1.url, alt: "Outdoor padel court at golden hour in the Lebanese mountains" },
   { url: hero2.url, alt: "Padel court lit for an evening game" },
   { url: hero3.url, alt: "Close-up of the padel court net and green surface" },
   { url: hero4.url, alt: "Friends enjoying a padel game at Assia" },
   { url: hero5.url, alt: "Wide view of the court surrounded by mountains" },
+];
+
+const HERO_IMAGES = [
+  { url: "/images/assia-padel-preview.jpg", alt: "Assia Padel Court — the wait is almost over", width: 2048, height: 2048 },
+  { url: "/images/assia-coming-soon.jpg", alt: "Assia Padel Court — coming soon", width: 1080, height: 1080 },
+  { url: "/images/assia-instagram.jpg", alt: "Follow @assiapadelcourt on Instagram — scan the QR code", width: 1080, height: 1402 },
 ];
 
 export const Route = createFileRoute("/")({
@@ -108,16 +114,17 @@ function HeroGallery() {
             <img
               src={img.url}
               alt={img.alt}
-              className="h-full w-full object-cover"
-              width={1200}
-              height={800}
+              className="h-full w-full object-contain bg-[#24282b]"
+              width={img.width}
+              height={img.height}
               fetchPriority={i === 0 ? "high" : "auto"}
               loading={i === 0 ? "eager" : "lazy"}
             />
           </div>
         ))}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30" />
-        <div className="absolute inset-0 flex flex-col justify-end p-4 pb-6">
+      </div>
+      <div className="relative bg-[#24282b]">
+        <div className="flex flex-col justify-end p-4 pb-8">
           <div className="mx-auto w-full max-w-2xl">
             <p className="font-display text-2xl font-bold text-white sm:text-3xl">Your Court. Your Game.</p>
             <p className="mt-1 max-w-sm text-sm font-medium text-white/90">Book your next padel session in seconds.</p>
@@ -743,7 +750,7 @@ function PhotoGallery() {
       <h2 className="font-display text-lg font-semibold text-foreground">Court Photos</h2>
       <p className="text-sm text-muted-foreground">A glimpse of the court before your visit.</p>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        {HERO_IMAGES.map((img, i) => (
+        {COURT_IMAGES.map((img, i) => (
           <div key={img.url} className={`overflow-hidden rounded-xl ${i === 0 ? "col-span-2" : ""}`}>
             <img src={img.url} alt={img.alt} className="h-full w-full object-cover" width={600} height={400} loading="lazy" />
           </div>
