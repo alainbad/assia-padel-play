@@ -37,7 +37,6 @@ const COURT_IMAGES = [
 const HERO_IMAGES = [
   { url: "/images/assia-padel-preview.jpg", alt: "Assia Padel Court — the wait is almost over", width: 2048, height: 2048 },
   { url: "/images/assia-coming-soon.jpg", alt: "Assia Padel Court — coming soon", width: 1080, height: 1080 },
-  { url: "/images/assia-instagram.jpg", alt: "Follow @assiapadelcourt on Instagram — scan the QR code", width: 1080, height: 1402 },
 ];
 
 export const Route = createFileRoute("/")({
