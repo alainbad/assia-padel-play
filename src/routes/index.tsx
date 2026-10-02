@@ -809,7 +809,7 @@ function LocationSection() {
       >
         <div className="relative flex aspect-video items-center justify-center">
           <img
-            src={hero1.url}
+            src="/images/assia-padel-preview.jpg"
             alt="Assia Padel Court"
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover"
