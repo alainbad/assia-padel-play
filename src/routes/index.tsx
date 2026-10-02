@@ -814,9 +814,13 @@ function LocationSection() {
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover"
           />
-          <div className="absolute bottom-4 right-4 flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-primary-foreground shadow-sm sm:bottom-6 sm:right-6">
-            <LocationIcon className="h-5 w-5" aria-hidden="true" />
-            <span className="font-display text-sm font-semibold sm:text-base">Locate us</span>
+          <div
+            className="absolute bottom-5 right-5 text-right uppercase sm:bottom-8 sm:right-8"
+            style={{ fontFamily: '"Arial Black", Arial, sans-serif', textShadow: "0 2px 6px rgb(0 0 0 / 30%)" }}
+            aria-label="Locate us"
+          >
+            <span className="block text-xl font-bold tracking-[0.14em] text-white sm:text-3xl">Locate</span>
+            <span className="block text-5xl font-black leading-none tracking-tight text-[#FFD12B] sm:text-7xl">us</span>
           </div>
         </div>
       </a>
