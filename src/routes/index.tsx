@@ -807,7 +807,7 @@ function LocationSection() {
         rel="noreferrer"
         className="mt-3 block overflow-hidden rounded-xl border border-border"
       >
-        <div className="relative flex aspect-video items-center justify-center">
+        <div className="relative flex aspect-square items-center justify-center">
           <img
             src="/images/assia-padel-preview.jpg"
             alt="Assia Padel Court"
