@@ -21,7 +21,6 @@ import {
   type TimeSlot,
 } from "@/lib/bookings";
 import hero1 from "@/assets/hero-1.jpg.asset.json";
-import hero1 from "@/assets/hero-1.jpg.asset.json";
 import hero3 from "@/assets/hero-3.jpg.asset.json";
 import hero4 from "@/assets/hero-4.jpg.asset.json";
 
