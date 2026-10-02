@@ -809,16 +809,14 @@ function LocationSection() {
       >
         <div className="relative flex aspect-square items-center justify-center">
           <img
-            src="/images/assia-padel-preview.jpg"
+            src="/images/assia-location.jpg"
             alt="Assia Padel Court"
             loading="lazy"
             className="absolute inset-0 h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-foreground/45" />
-          <div className="relative text-center">
-            <LocationIcon className="mx-auto h-8 w-8 text-primary-foreground drop-shadow" />
-            <p className="mt-2 text-sm font-semibold text-primary-foreground drop-shadow">Assia Padel Court</p>
-            <p className="text-xs text-primary-foreground/80 drop-shadow">Open in Google Maps</p>
+          <div className="absolute bottom-4 right-4 flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-primary-foreground shadow-sm sm:bottom-6 sm:right-6">
+            <LocationIcon className="h-5 w-5" aria-hidden="true" />
+            <span className="font-display text-sm font-semibold sm:text-base">Locate us</span>
           </div>
         </div>
       </a>
