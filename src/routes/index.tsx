@@ -21,17 +21,13 @@ import {
   type TimeSlot,
 } from "@/lib/bookings";
 import hero1 from "@/assets/hero-1.jpg.asset.json";
-import hero2 from "@/assets/hero-2.jpg.asset.json";
 import hero3 from "@/assets/hero-3.jpg.asset.json";
 import hero4 from "@/assets/hero-4.jpg.asset.json";
-import hero5 from "@/assets/hero-5.jpg.asset.json";
 
 const COURT_IMAGES = [
   { url: hero1.url, alt: "Outdoor padel court at golden hour in the Lebanese mountains" },
-  { url: hero2.url, alt: "Padel court lit for an evening game" },
   { url: hero3.url, alt: "Close-up of the padel court net and green surface" },
   { url: hero4.url, alt: "Friends enjoying a padel game at Assia" },
-  { url: hero5.url, alt: "Wide view of the court surrounded by mountains" },
 ];
 
 const HERO_IMAGES = [
