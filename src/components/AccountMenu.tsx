@@ -16,6 +16,14 @@ function initialFor(user: User): string {
 export function AccountMenu() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) {
+      setAdmin(false);
+      return;
+    }
+    void supabase.rpc("is_admin").then(({ data }) => setAdmin(data === true));
+  }, [user]);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +94,15 @@ export function AccountMenu() {
           >
             Profile
           </Link>
+          {admin && (
+            <Link
+              to="/admin"
+              onClick={() => setOpen(false)}
+              className="block rounded-lg px-2.5 py-2 text-sm font-medium hover:bg-secondary"
+            >
+              Admin panel
+            </Link>
+          )}
           <button
             type="button"
             onClick={handleSignOut}

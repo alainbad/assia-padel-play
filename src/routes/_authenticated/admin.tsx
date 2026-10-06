@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { AdminManagement, BookingEditor } from "@/components/AdminManagement";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -54,6 +56,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 function AdminPage() {
   const navigate = useNavigate();
+  const [editing, setEditing] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const checkAdmin = useServerFn(getIsAdmin);
   const fetchBookings = useServerFn(listAllBookings);
@@ -131,6 +134,12 @@ function AdminPage() {
         </button>
       </div>
 
+      <AdminManagement userId={adminQuery.data.userId} />
+      {(statusMutation.error || paymentMutation.error || bookingsQuery.error) && (
+        <p role="alert" className="mt-4 text-destructive">
+          {(statusMutation.error || paymentMutation.error || bookingsQuery.error)?.message}
+        </p>
+      )}
       {bookingsQuery.isLoading && (
         <p className="mt-8 text-sm text-muted-foreground">Loading reservations…</p>
       )}
@@ -201,6 +210,24 @@ function AdminPage() {
               </div>
             </div>
 
+            <div className="mt-3 flex gap-2">
+              <button
+                className="rounded-lg border px-3 py-2 text-sm"
+                onClick={() => setEditing(editing === b.id ? null : b.id)}
+              >
+                Edit reservation
+              </button>
+              {b.status === "upcoming" && (
+                <button
+                  className="rounded-lg border px-3 py-2 text-sm"
+                  disabled={statusMutation.isPending}
+                  onClick={() => statusMutation.mutate({ id: b.id, status: "completed" })}
+                >
+                  Mark completed
+                </button>
+              )}
+            </div>
+            {editing === b.id && <BookingEditor booking={b} onDone={() => setEditing(null)} />}
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
               <span
                 className={`rounded-full px-2.5 py-1 text-xs font-semibold ${

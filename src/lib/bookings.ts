@@ -2,6 +2,7 @@ const STORAGE_KEY = "assia-padel-bookings-v1";
 
 export type Booking = {
   id: string;
+  managementToken?: string;
   reference: string;
   date: string; // ISO date YYYY-MM-DD
   time: string; // "20:00"
@@ -177,26 +178,33 @@ export function saveBookings(bookings: Booking[]): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
 }
 
-export function addBooking(
+export async function addBooking(
   booking: Omit<Booking, "id" | "reference" | "createdAt" | "status" | "email" | "notes"> & {
     email?: string;
     notes?: string;
   },
-): Booking {
+): Promise<Booking> {
   const newBooking: Booking = {
     ...booking,
     id: crypto.randomUUID(),
+    managementToken: crypto.randomUUID(),
     reference: generateReference(),
     createdAt: new Date().toISOString(),
     status: "upcoming",
   };
+  await syncBookingToBackend(newBooking);
   const bookings = loadBookings();
   bookings.push(newBooking);
   saveBookings(bookings);
   return newBooking;
 }
 
-export function cancelBooking(id: string): void {
+export async function cancelBooking(id: string): Promise<void> {
+  const booking = loadBookings().find((b) => b.id === id);
+  if (!booking?.managementToken)
+    throw new Error("Please contact the court to cancel this older reservation.");
+  const { cancelGuestBooking } = await import("./management.functions");
+  await cancelGuestBooking({ data: { id, token: booking.managementToken } });
   const bookings = loadBookings().map((b) =>
     b.id === id ? { ...b, status: "cancelled" as const } : b,
   );
@@ -214,8 +222,9 @@ export function formatDateKey(date: Date): string {
 export function generateDayOptions(
   count = 14,
 ): { date: Date; key: string; label: string; sublabel: string }[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(
+    new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Beirut" }) + "T12:00:00",
+  );
   const options = [];
   for (let i = 0; i < count; i++) {
     const date = new Date(today);
@@ -376,31 +385,49 @@ export function seedSampleBookings(): void {
   saveBookings(sampleBookings);
 }
 
-/**
- * Best-effort mirror of a local booking into the backend so the court owner
- * can see it in the admin dashboard. Failures are ignored: the booking still
- * lives in localStorage for the customer.
- */
+/** Persist to the shared schedule before showing a confirmed reservation. */
 export async function syncBookingToBackend(booking: Booking): Promise<void> {
   try {
     const { supabase } = await import("@/integrations/supabase/client");
-    await supabase.from("bookings").insert({
-      id: booking.id,
-      reference: booking.reference,
-      date: booking.date,
-      time: booking.time,
-      duration: booking.duration,
-      name: booking.name,
-      phone: booking.phone,
-      email: booking.email ?? null,
-      players: booking.players,
-      notes: booking.notes ?? null,
-      price: booking.price,
-      payment_method: booking.paymentMethod,
-      court_name: booking.courtName,
-      status: "upcoming",
-    });
-  } catch {
-    // ignore — offline or backend unavailable
+    const { error } = await (supabase as import("@supabase/supabase-js").SupabaseClient)
+      .from("bookings")
+      .insert({
+        management_token: booking.managementToken,
+        id: booking.id,
+        reference: booking.reference,
+        date: booking.date,
+        time: booking.time,
+        duration: booking.duration,
+        name: booking.name,
+        phone: booking.phone,
+        email: booking.email ?? null,
+        players: booking.players,
+        notes: booking.notes ?? null,
+        price: booking.price,
+        payment_method: booking.paymentMethod,
+        court_name: booking.courtName,
+        status: "upcoming",
+      });
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error("Could not confirm the reservation. Please try again.");
   }
+}
+
+export async function refreshMyBookings(): Promise<void> {
+  const bookings = loadBookings();
+  const keys = bookings
+    .filter((b) => b.managementToken)
+    .slice(-100)
+    .map((b) => ({ id: b.id, token: b.managementToken! }));
+  const { getGuestBookings } = await import("./management.functions");
+  const updates = await getGuestBookings({ data: keys });
+  saveBookings(
+    bookings.map((b) => {
+      const fresh = updates.find((u) => u.id === b.id);
+      return fresh ? { ...b, ...fresh } : b;
+    }),
+  );
 }

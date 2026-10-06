@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { PaymentStatus } from "@/lib/bookings";
@@ -31,7 +32,11 @@ export const listAllBookings = createServerFn({ method: "GET" })
 
 export const setBookingStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { id: string; status: "upcoming" | "completed" | "cancelled" }) => data)
+  .inputValidator((data: unknown) =>
+    z
+      .object({ id: z.string().uuid(), status: z.enum(["upcoming", "completed", "cancelled"]) })
+      .parse(data),
+  )
   .handler(async ({ context, data }) => {
     const { data: isAdmin } = await context.supabase.rpc("is_admin");
     if (isAdmin !== true) throw new Error("Not authorized");
@@ -45,7 +50,11 @@ export const setBookingStatus = createServerFn({ method: "POST" })
 
 export const setBookingPaymentStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { id: string; paymentStatus: PaymentStatus }) => data)
+  .inputValidator((data: unknown) =>
+    z
+      .object({ id: z.string().uuid(), paymentStatus: z.enum(["unpaid", "deposit", "paid"]) })
+      .parse(data),
+  )
   .handler(async ({ context, data }) => {
     const { data: isAdmin } = await context.supabase.rpc("is_admin");
     if (isAdmin !== true) throw new Error("Not authorized");
@@ -78,9 +87,14 @@ export const listRegisteredUsers = createServerFn({ method: "GET" })
     // client dynamically here so it's never bundled into client-shipped code
     // — see the warning in client.server.ts.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
-    if (error) throw error;
-    return data.users.map((u) => {
+    const users = [];
+    for (let page = 1; ; page++) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+      if (error) throw error;
+      users.push(...data.users);
+      if (data.users.length < 200) break;
+    }
+    return users.map((u) => {
       const metadata = (u.user_metadata ?? {}) as Record<string, unknown>;
       const identifierType = metadata["signup_identifier_type"];
       const identifier = metadata["signup_identifier"];

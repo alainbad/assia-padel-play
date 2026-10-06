@@ -1,14 +1,28 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { getBookingsByStatus, cancelBooking, formatDisplayDate, formatTime12h, paymentLabel, type Booking } from "@/lib/bookings";
+import {
+  getBookingsByStatus,
+  cancelBooking,
+  refreshMyBookings,
+  formatDisplayDate,
+  formatTime12h,
+  paymentLabel,
+  type Booking,
+} from "@/lib/bookings";
 
 export const Route = createFileRoute("/bookings")({
   head: () => ({
     meta: [
       { title: "My Bookings — Assia Padel Court" },
-      { name: "description", content: "View and manage your upcoming padel court bookings at Assia Padel Court." },
+      {
+        name: "description",
+        content: "View and manage your upcoming padel court bookings at Assia Padel Court.",
+      },
       { property: "og:title", content: "My Bookings — Assia Padel Court" },
-      { property: "og:description", content: "View and manage your upcoming padel court bookings at Assia Padel Court." },
+      {
+        property: "og:description",
+        content: "View and manage your upcoming padel court bookings at Assia Padel Court.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -17,28 +31,51 @@ export const Route = createFileRoute("/bookings")({
 });
 
 function BookingsPage() {
-  const [bookings, setBookings] = useState<{ upcoming: Booking[]; previous: Booking[] }>({ upcoming: [], previous: [] });
+  const [bookings, setBookings] = useState<{ upcoming: Booking[]; previous: Booking[] }>({
+    upcoming: [],
+    previous: [],
+  });
+  const [error, setError] = useState("");
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setBookings(getBookingsByStatus());
     setHydrated(true);
+    void refreshMyBookings()
+      .then(() => setBookings(getBookingsByStatus()))
+      .catch(() => setError("Could not refresh reservations. Please try again."));
   }, []);
 
-  const handleCancel = (id: string) => {
-    cancelBooking(id);
-    setBookings(getBookingsByStatus());
+  const handleCancel = async (id: string) => {
+    if (!window.confirm("Cancel this reservation?")) return;
+    try {
+      await cancelBooking(id);
+      setBookings(getBookingsByStatus());
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Cancellation failed");
+    }
   };
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">My Bookings</h1>
-        <Link to="/" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+          My Bookings
+        </h1>
+        <Link
+          to="/"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+        >
           Book a Court
         </Link>
       </div>
 
+      {error && (
+        <p role="alert" className="mb-4 text-destructive">
+          {error}
+        </p>
+      )}
       {!hydrated ? (
         <div className="space-y-4">
           <div className="h-32 rounded-xl bg-muted animate-pulse" />
@@ -47,12 +84,19 @@ function BookingsPage() {
       ) : (
         <div className="space-y-8">
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Upcoming</h2>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Upcoming
+            </h2>
             {bookings.upcoming.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-6 text-center">
                 <p className="text-foreground">No upcoming bookings.</p>
-                <p className="mt-1 text-sm text-muted-foreground">Book your first session and get on the court.</p>
-                <Link to="/" className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Book your first session and get on the court.
+                </p>
+                <Link
+                  to="/"
+                  className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                >
                   Book Now
                 </Link>
               </div>
@@ -66,7 +110,9 @@ function BookingsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">Previous</h2>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Previous
+            </h2>
             {bookings.previous.length === 0 ? (
               <p className="text-sm text-muted-foreground">No previous bookings yet.</p>
             ) : (
@@ -90,7 +136,9 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: (id: 
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-display text-lg font-semibold text-foreground">{formatDisplayDate(booking.date)}</p>
+          <p className="font-display text-lg font-semibold text-foreground">
+            {formatDisplayDate(booking.date)}
+          </p>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {formatTime12h(booking.time)} — {getEndTime(booking.time, booking.duration)}
           </p>
