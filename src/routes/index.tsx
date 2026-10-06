@@ -808,10 +808,10 @@ function LocationSection() {
         className="mt-3 block overflow-hidden rounded-xl border border-border"
       >
         <img
-          src="/images/assia-location-design.webp"
+          src="/images/assia-location-edited.jpg"
           alt="Locate us — Assia Padel Court"
-          width={1086}
-          height={1448}
+          width={815}
+          height={1086}
           loading="lazy"
           className="block h-auto w-full"
         />
