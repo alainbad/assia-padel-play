@@ -164,7 +164,7 @@ function HeroGallery() {
 function BookingSection() {
   const content = useContext(ContentContext);
   const schedule = useContext(ScheduleContext);
-  const ALL_SLOTS = makeSlots(schedule);
+  const ALL_SLOTS = useMemo(() => makeSlots(schedule), [schedule]);
   const [saving, setSaving] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const days = useMemo(() => generateDayOptions(14), []);
@@ -380,7 +380,7 @@ function SlotList({
   onSelect: (time: string) => void;
 }) {
   const schedule = useContext(ScheduleContext);
-  const ALL_SLOTS = makeSlots(schedule);
+  const ALL_SLOTS = useMemo(() => makeSlots(schedule), [schedule]);
   const fetch = useServerFn(getAvailability);
   const availability = useQuery({
     queryKey: ["availability", dateKey],
@@ -416,7 +416,7 @@ function SlotList({
       byPeriod[slot.period].push(slot);
     }
     return byPeriod;
-  }, [schedule]);
+  }, [ALL_SLOTS]);
 
   const periodLabel = { morning: "Morning", afternoon: "Afternoon", evening: "Evening" };
 

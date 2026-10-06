@@ -163,15 +163,13 @@ export const saveAdminBooking = createServerFn({ method: "POST" })
     const { id, ...values } = data;
     const result = id
       ? await db.from("bookings").update(values).eq("id", id)
-      : await db
-          .from("bookings")
-          .insert({
-            ...values,
-            reference: `PAD-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-            court_name: "Court 1",
-            status: "upcoming",
-            payment_status: "unpaid",
-          });
+      : await db.from("bookings").insert({
+          ...values,
+          reference: `PAD-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+          court_name: "Court 1",
+          status: "upcoming",
+          payment_status: "unpaid",
+        });
     if (result.error) throw result.error;
     return { ok: true };
   });
