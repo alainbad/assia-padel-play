@@ -57,6 +57,23 @@ export const Route = createFileRoute("/_authenticated/admin")({
 function AdminPage() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<
+    Record<
+      string,
+      { status?: "upcoming" | "completed" | "cancelled"; paymentStatus?: PaymentStatus }
+    >
+  >({});
+  const [savingChanges, setSavingChanges] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const stageStatus = ({
+    id,
+    status,
+  }: {
+    id: string;
+    status: "upcoming" | "completed" | "cancelled";
+  }) => setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], status } }));
+  const stagePayment = ({ id, paymentStatus }: { id: string; paymentStatus: PaymentStatus }) =>
+    setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], paymentStatus } }));
   const queryClient = useQueryClient();
   const checkAdmin = useServerFn(getIsAdmin);
   const fetchBookings = useServerFn(listAllBookings);
@@ -67,7 +84,7 @@ function AdminPage() {
   const bookingsQuery = useQuery({
     queryKey: ["admin-bookings"],
     queryFn: () => fetchBookings(),
-    enabled: adminQuery.data?.isAdmin === true,
+    enabled: adminQuery.data?.canManage === true,
   });
 
   const statusMutation = useMutation({
@@ -82,6 +99,31 @@ function AdminPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-bookings"] }),
   });
 
+  async function saveReservationChanges() {
+    setSavingChanges(true);
+    setSaveMessage("");
+    try {
+      for (const [id, draft] of Object.entries(drafts)) {
+        if (draft.status) await statusMutation.mutateAsync({ id, status: draft.status });
+        if (draft.paymentStatus)
+          await paymentMutation.mutateAsync({ id, paymentStatus: draft.paymentStatus });
+        setDrafts((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }
+      setSaveMessage("Reservation changes saved.");
+    } catch (e) {
+      setSaveMessage(
+        e instanceof Error
+          ? e.message
+          : "Could not save all changes. Remaining changes are still pending.",
+      );
+    } finally {
+      setSavingChanges(false);
+    }
+  }
   async function handleSignOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
@@ -95,10 +137,10 @@ function AdminPage() {
     );
   }
 
-  if (!adminQuery.data?.isAdmin) {
+  if (!adminQuery.data?.canManage) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="font-display text-xl font-semibold text-foreground">Admins only</h1>
+        <h1 className="font-display text-xl font-semibold text-foreground">Staff only</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           This account doesn't have access to the court dashboard.
         </p>
@@ -112,7 +154,11 @@ function AdminPage() {
     );
   }
 
-  const bookings = bookingsQuery.data ?? [];
+  const bookings = (bookingsQuery.data ?? []).map((b) => ({
+    ...b,
+    status: drafts[b.id]?.status ?? b.status,
+    payment_status: drafts[b.id]?.paymentStatus ?? b.payment_status,
+  }));
   const active = bookings.filter((b) => b.status !== "cancelled");
 
   return (
@@ -134,7 +180,7 @@ function AdminPage() {
         </button>
       </div>
 
-      <AdminManagement userId={adminQuery.data.userId} />
+      <AdminManagement userId={adminQuery.data.userId} role={adminQuery.data.role} />
       {(statusMutation.error || paymentMutation.error || bookingsQuery.error) && (
         <p role="alert" className="mt-4 text-destructive">
           {(statusMutation.error || paymentMutation.error || bookingsQuery.error)?.message}
@@ -168,6 +214,30 @@ function AdminPage() {
         </p>
       )}
 
+      <div className="sticky top-0 z-10 mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+        <span className="text-sm">
+          {Object.keys(drafts).length} reservations with unsaved changes
+        </span>
+        <button
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          disabled={savingChanges || !Object.keys(drafts).length}
+          onClick={() => void saveReservationChanges()}
+        >
+          {savingChanges ? "Saving…" : "Save changes"}
+        </button>
+        <button
+          className="text-sm underline"
+          disabled={savingChanges}
+          onClick={() => setDrafts({})}
+        >
+          Discard changes
+        </button>
+      </div>
+      {saveMessage && (
+        <p role="status" className="mt-3 text-sm">
+          {saveMessage}
+        </p>
+      )}
       <div className="mt-6 space-y-3">
         {bookings.map((b) => (
           <div key={b.id} className="rounded-xl border border-border bg-card p-4">
@@ -200,8 +270,8 @@ function AdminPage() {
                 </span>
                 {b.status === "upcoming" && (
                   <button
-                    onClick={() => statusMutation.mutate({ id: b.id, status: "cancelled" })}
-                    disabled={statusMutation.isPending}
+                    onClick={() => stageStatus({ id: b.id, status: "cancelled" })}
+                    disabled={savingChanges}
                     className="rounded-lg border border-input px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
                   >
                     Cancel
@@ -220,8 +290,8 @@ function AdminPage() {
               {b.status === "upcoming" && (
                 <button
                   className="rounded-lg border px-3 py-2 text-sm"
-                  disabled={statusMutation.isPending}
-                  onClick={() => statusMutation.mutate({ id: b.id, status: "completed" })}
+                  disabled={savingChanges}
+                  onClick={() => stageStatus({ id: b.id, status: "completed" })}
                 >
                   Mark completed
                 </button>
@@ -242,8 +312,8 @@ function AdminPage() {
               </span>
               {b.payment_status === "unpaid" && (
                 <button
-                  onClick={() => paymentMutation.mutate({ id: b.id, paymentStatus: "deposit" })}
-                  disabled={paymentMutation.isPending}
+                  onClick={() => stagePayment({ id: b.id, paymentStatus: "deposit" })}
+                  disabled={savingChanges}
                   className="rounded-lg border border-input px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
                 >
                   Deposit received (${DEPOSIT_AMOUNT})
@@ -251,8 +321,8 @@ function AdminPage() {
               )}
               {b.payment_status !== "paid" && (
                 <button
-                  onClick={() => paymentMutation.mutate({ id: b.id, paymentStatus: "paid" })}
-                  disabled={paymentMutation.isPending}
+                  onClick={() => stagePayment({ id: b.id, paymentStatus: "paid" })}
+                  disabled={savingChanges}
                   className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   Full amount received
@@ -260,8 +330,8 @@ function AdminPage() {
               )}
               {b.payment_status !== "unpaid" && (
                 <button
-                  onClick={() => paymentMutation.mutate({ id: b.id, paymentStatus: "unpaid" })}
-                  disabled={paymentMutation.isPending}
+                  onClick={() => stagePayment({ id: b.id, paymentStatus: "unpaid" })}
+                  disabled={savingChanges}
                   className="text-xs font-medium text-muted-foreground hover:text-foreground"
                 >
                   Reset

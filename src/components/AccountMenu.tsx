@@ -1,3 +1,4 @@
+import { getIsAdmin } from "@/lib/admin.functions";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { User } from "@supabase/supabase-js";
@@ -22,7 +23,17 @@ export function AccountMenu() {
       setAdmin(false);
       return;
     }
-    void supabase.rpc("is_admin").then(({ data }) => setAdmin(data === true));
+    let active = true;
+    void getIsAdmin()
+      .then((data) => {
+        if (active) setAdmin(data.canManage);
+      })
+      .catch(() => {
+        if (active) setAdmin(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [user]);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

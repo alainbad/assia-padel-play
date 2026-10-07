@@ -34,6 +34,9 @@ export const contentSchema = z.object({
     .url()
     .refine((v) => v.startsWith("https://")),
   directionsLabel: text,
+  openingHoursTitle: text.default("Opening Hours"),
+  openingHoursText: z.string().max(2000).default(""),
+  contactEmail: z.string().email().or(z.literal("")).default(""),
   contactTitle: text,
   contactBody: text,
   phone: text,

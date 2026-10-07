@@ -1,3 +1,4 @@
+import { getIsAdmin } from "@/lib/admin.functions";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -70,7 +71,7 @@ function AuthPage() {
         setError("Those details didn't match. Check your username and password.");
         return;
       }
-      const { data: isAdmin } = await supabase.rpc("is_admin");
+      const { canManage: isAdmin } = await getIsAdmin();
       if (isAdmin === true) {
         navigate({ to: "/admin", replace: true });
       } else {
@@ -124,7 +125,7 @@ function AuthPage() {
         return;
       }
       if (data.session) {
-        const { data: isAdmin } = await supabase.rpc("is_admin");
+        const { canManage: isAdmin } = await getIsAdmin();
         navigate({ to: isAdmin === true ? "/admin" : "/", replace: true });
         return;
       }

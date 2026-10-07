@@ -7,17 +7,17 @@ import type { PaymentStatus } from "@/lib/bookings";
 export const getIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.rpc("is_admin");
-    if (error) throw error;
-    return { isAdmin: data === true, userId: context.userId };
+    const { getStaffIdentity } = await import("./staff.server");
+    const { role, userId } = await getStaffIdentity(context.supabase);
+    return { isAdmin: role === "admin", canManage: role !== "user", role, userId };
   });
 
 export const listAllBookings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("is_admin");
-    if (isAdmin !== true) throw new Error("Not authorized");
-    const { data, error } = await context.supabase
+    const { requireStaff } = await import("./staff.server");
+    const { db } = await requireStaff(context.supabase);
+    const { data, error } = await db
       .from("bookings")
       .select("*")
       .order("date", { ascending: true })
@@ -38,12 +38,9 @@ export const setBookingStatus = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ context, data }) => {
-    const { data: isAdmin } = await context.supabase.rpc("is_admin");
-    if (isAdmin !== true) throw new Error("Not authorized");
-    const { error } = await context.supabase
-      .from("bookings")
-      .update({ status: data.status })
-      .eq("id", data.id);
+    const { requireStaff } = await import("./staff.server");
+    const { db } = await requireStaff(context.supabase);
+    const { error } = await db.from("bookings").update({ status: data.status }).eq("id", data.id);
     if (error) throw error;
     return { ok: true };
   });
@@ -56,11 +53,11 @@ export const setBookingPaymentStatus = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ context, data }) => {
-    const { data: isAdmin } = await context.supabase.rpc("is_admin");
-    if (isAdmin !== true) throw new Error("Not authorized");
+    const { requireStaff } = await import("./staff.server");
+    const { db } = await requireStaff(context.supabase);
     // See listAllBookings — payment_status isn't in the generated Database
     // types yet, so the client is used untyped for this one call.
-    const client = context.supabase as unknown as SupabaseClient;
+    const client = db;
     const { error } = await client
       .from("bookings")
       .update({ payment_status: data.paymentStatus })
@@ -75,13 +72,14 @@ export type RegisteredUser = {
   email: string | null;
   phone: string | null;
   createdAt: string;
+  role: import("./roles").SiteRole;
 };
 
 export const listRegisteredUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RegisteredUser[]> => {
-    const { data: isAdmin } = await context.supabase.rpc("is_admin");
-    if (isAdmin !== true) throw new Error("Not authorized");
+    const { requireStaff } = await import("./staff.server");
+    const { db } = await requireStaff(context.supabase);
     // Listing every Supabase Auth user requires the service-role admin API,
     // which the regular (RLS-bound) client can't do. Import the service-role
     // client dynamically here so it's never bundled into client-shipped code
@@ -94,6 +92,9 @@ export const listRegisteredUsers = createServerFn({ method: "GET" })
       users.push(...data.users);
       if (data.users.length < 200) break;
     }
+    const { data: admins, error: adminError } = await db.from("admins").select("user_id");
+    if (adminError) throw adminError;
+    const { resolveRole } = await import("./roles");
     return users.map((u) => {
       const metadata = (u.user_metadata ?? {}) as Record<string, unknown>;
       const identifierType = metadata["signup_identifier_type"];
@@ -102,6 +103,10 @@ export const listRegisteredUsers = createServerFn({ method: "GET" })
       const isPhoneSignup = identifierType === "phone" && typeof identifier === "string";
       return {
         id: u.id,
+        role: resolveRole(
+          (admins ?? []).some((a) => a.user_id === u.id),
+          u.app_metadata,
+        ),
         name,
         email: isPhoneSignup ? null : (u.email ?? null),
         phone: isPhoneSignup ? (identifier as string) : null,

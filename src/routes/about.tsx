@@ -68,12 +68,12 @@ function AboutPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="font-display text-lg font-semibold text-foreground">Opening Hours</h2>
+        <h2 className="font-display text-lg font-semibold text-foreground">
+          {content.openingHoursTitle}
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Daily: {formatTime12h(schedule.times[0]!)} –{" "}
-          {getSlotEndTime(schedule.times.at(-1)!, schedule.duration)}
-          <br />
-          Last booking starts at {formatTime12h(schedule.times.at(-1)!)}
+          {content.openingHoursText ||
+            `Daily: ${formatTime12h(schedule.times[0]!)} – ${getSlotEndTime(schedule.times.at(-1)!, schedule.duration)}. Last booking starts at ${formatTime12h(schedule.times.at(-1)!)}.`}
         </p>
       </section>
 
@@ -91,8 +91,15 @@ function AboutPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="font-display text-lg font-semibold text-foreground">Contact</h2>
-        <p className="mt-2 text-sm text-muted-foreground">WhatsApp or call us for any questions.</p>
+        {content.contactEmail && (
+          <a className="text-primary" href={`mailto:${content.contactEmail}`}>
+            {content.contactEmail}
+          </a>
+        )}
+        <h2 className="font-display text-lg font-semibold text-foreground">
+          {content.contactTitle}
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">{content.contactBody}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <a
             href={`https://wa.me/${content.whatsapp}`}

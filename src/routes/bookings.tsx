@@ -59,6 +59,12 @@ function BookingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
+      <Link
+        to="/"
+        className="mb-4 inline-flex rounded-lg border border-input px-4 py-2 text-sm font-semibold hover:bg-secondary"
+      >
+        ← Home
+      </Link>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
           My Bookings

@@ -1023,8 +1023,16 @@ function LocationSection() {
 
 function ContactFooter() {
   const content = useContext(ContentContext);
+  const schedule = useContext(ScheduleContext);
   return (
     <footer className="border-t border-border py-8">
+      <div className="mb-6">
+        <h2 className="font-display text-lg font-semibold">{content.openingHoursTitle}</h2>
+        <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">
+          {content.openingHoursText ||
+            `Daily: ${formatTime12h(schedule.times[0]!)} – ${getSlotEndTime(schedule.times.at(-1)!, schedule.duration)}. Last booking starts at ${formatTime12h(schedule.times.at(-1)!)}.`}
+        </p>
+      </div>
       <div className="flex flex-col gap-4">
         <div>
           <p className="font-display text-lg font-semibold text-foreground">
@@ -1033,6 +1041,14 @@ function ContactFooter() {
           <p className="text-sm text-muted-foreground">{content.contactBody}</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          {content.contactEmail && (
+            <a
+              href={`mailto:${content.contactEmail}`}
+              className="inline-flex rounded-xl border border-border px-4 py-2.5 text-sm font-semibold"
+            >
+              {content.contactEmail}
+            </a>
+          )}
           <a
             href={`https://wa.me/${content.whatsapp}`}
             target="_blank"

@@ -1,7 +1,9 @@
+import { canManageAccount, type SiteRole } from "@/lib/roles";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  prepareSiteImageUpload,
   getSiteSettings,
   saveSiteSettings,
   manageUser,
@@ -35,14 +37,16 @@ function Notice({ message }: { message: string }) {
   ) : null;
 }
 
-export function AdminManagement({ userId }: { userId: string }) {
+export function AdminManagement({ userId, role }: { userId: string; role: SiteRole }) {
   const [tab, setTab] = useState("Content");
   return (
     <section className="mt-6 rounded-xl border border-border bg-card p-4 sm:p-6">
       <h2 className="font-display text-xl font-bold">Manage your court</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Changes are shared across the website.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Choose a section, edit the fields, then press Save changes to apply them.
+      </p>
       <div className="my-5 flex flex-wrap gap-2" role="tablist">
-        {["Content", "Schedule", "Users", "My password"].map((t) => (
+        {["Content", "Contact us", "Opening hours", "Schedule", "Users", "My password"].map((t) => (
           <button
             key={t}
             role="tab"
@@ -54,10 +58,18 @@ export function AdminManagement({ userId }: { userId: string }) {
           </button>
         ))}
       </div>
-      {tab === "Content" && <ContentEditor />}
-      {tab === "Schedule" && <ScheduleEditor />}
-      {tab === "Users" && <UserManager userId={userId} />}
-      {tab === "My password" && <OwnPassword />}
+      <div hidden={!["Content", "Contact us", "Opening hours"].includes(tab)}>
+        <ContentEditor section={tab} />
+      </div>
+      <div hidden={tab !== "Schedule"}>
+        <ScheduleEditor />
+      </div>
+      <div hidden={tab !== "Users"}>
+        <UserManager userId={userId} role={role} />
+      </div>
+      <div hidden={tab !== "My password"}>
+        <OwnPassword />
+      </div>
     </section>
   );
 }
@@ -77,6 +89,9 @@ const labels: Record<string, string> = {
   locationAlt: "Location image description",
   directionsUrl: "Google Maps directions URL",
   directionsLabel: "Directions button label",
+  openingHoursTitle: "Opening hours heading",
+  openingHoursText: "Displayed opening hours (leave blank to use the booking schedule)",
+  contactEmail: "Contact email (optional)",
   contactTitle: "Contact heading",
   contactBody: "Contact text",
   phone: "Telephone number",
@@ -93,6 +108,7 @@ function ImageField({
   value: string;
   onChange: (url: string) => void;
 }) {
+  const prepareUpload = useServerFn(prepareSiteImageUpload);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function upload(file: File | undefined) {
@@ -107,12 +123,14 @@ function ImageField({
     }
     setBusy(true);
     try {
-      const path = `${crypto.randomUUID()}.${file.type.split("/")[1]}`;
+      const upload = await prepareUpload({
+        data: { type: file.type as "image/jpeg" | "image/png" | "image/webp" },
+      });
       const { error } = await supabase.storage
         .from("site-images")
-        .upload(path, file, { contentType: file.type });
+        .uploadToSignedUrl(upload.path, upload.token, file, { contentType: file.type });
       if (error) throw error;
-      onChange(supabase.storage.from("site-images").getPublicUrl(path).data.publicUrl);
+      onChange(upload.url);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -144,21 +162,27 @@ function ImageField({
     </div>
   );
 }
-function ContentEditor() {
+function ContentEditor({ section }: { section: string }) {
   const fetch = useServerFn(getSiteSettings);
   const query = useQuery({ queryKey: ["site-settings"], queryFn: () => fetch() });
   if (query.isPending) return <p>Loading content…</p>;
   if (query.isError) return <p role="alert">Could not load content. Please refresh.</p>;
-  return <ContentForm initial={query.data.content} schedule={query.data.schedule} />;
+  return (
+    <ContentForm initial={query.data.content} schedule={query.data.schedule} section={section} />
+  );
 }
 function ContentForm({
   initial,
   schedule,
+  section,
 }: {
+  section: string;
   initial: SiteContent;
   schedule: typeof defaultSchedule;
 }) {
   const [content, setContent] = useState(initial);
+  const [saved, setSaved] = useState(initial);
+  const dirty = JSON.stringify(content) !== JSON.stringify(saved);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const save = useServerFn(saveSiteSettings);
@@ -170,7 +194,8 @@ function ContentForm({
     try {
       await save({ data: { content } });
       await qc.invalidateQueries({ queryKey: ["site-settings"] });
-      setMessage("Website content saved.");
+      setSaved(content);
+      setMessage("Changes saved and applied to the website.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Could not save content");
     } finally {
@@ -179,101 +204,142 @@ function ContentForm({
   }
   return (
     <form onSubmit={submit} className="space-y-5">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+        <span className="text-sm">{dirty ? "Unsaved changes" : "All changes saved"}</span>
+        <button disabled={busy || !dirty} className={button}>
+          {busy ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+      <h3 className="font-display text-lg font-semibold">{section}</h3>
+      {section === "Opening hours" && (
+        <p className="text-sm text-muted-foreground">
+          These hours appear on the homepage and About page. Use Schedule to change bookable start
+          times and prices.
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
         Edit text and photos below. Save to update the website. Text embedded in a photo can be
         changed by uploading an edited image.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
-        {Object.entries(labels).map(([key, label]) => (
-          <Field key={key} label={label}>
-            <textarea
-              className={input}
-              rows={key.endsWith("Body") ? 4 : 2}
-              required
-              value={content[key as keyof SiteContent] as string}
-              onChange={(e) => setContent({ ...content, [key]: e.target.value })}
-            />
-          </Field>
-        ))}
-      </div>
-      <Field label="Facilities (one per line)">
-        <textarea
-          className={input}
-          rows={5}
-          value={content.facilities.join("\n")}
-          onChange={(e) => setContent({ ...content, facilities: e.target.value.split("\n") })}
-        />
-      </Field>
-      <ImageField
-        label="Locate us photo"
-        value={content.locationImage}
-        onChange={(url) => setContent({ ...content, locationImage: url })}
-      />
-      {(["heroImages", "courtImages"] as const).map((key) => (
-        <div key={key} className="space-y-3">
-          <h3 className="font-semibold">
-            {key === "heroImages" ? "Homepage slideshow" : "Court gallery"}
-          </h3>
-          {content[key].map((img, i) => (
-            <div key={i} className="space-y-2">
-              <ImageField
-                label={`Photo ${i + 1}`}
-                value={img.url}
-                onChange={(url) =>
-                  setContent({
-                    ...content,
-                    [key]: content[key].map((v, j) => (i === j ? { ...v, url } : v)),
-                  })
-                }
+        {Object.entries(labels)
+          .filter(([key]) =>
+            section === "Contact us"
+              ? [
+                  "contactTitle",
+                  "contactBody",
+                  "phone",
+                  "whatsapp",
+                  "whatsappLabel",
+                  "contactEmail",
+                ].includes(key)
+              : section === "Opening hours"
+                ? key.startsWith("openingHours")
+                : !key.startsWith("openingHours") &&
+                  ![
+                    "contactTitle",
+                    "contactBody",
+                    "phone",
+                    "whatsapp",
+                    "whatsappLabel",
+                    "contactEmail",
+                  ].includes(key),
+          )
+          .map(([key, label]) => (
+            <Field key={key} label={label}>
+              <textarea
+                className={input}
+                rows={key.endsWith("Body") ? 4 : 2}
+                required={!["openingHoursText", "contactEmail"].includes(key)}
+                value={content[key as keyof SiteContent] as string}
+                onChange={(e) => setContent({ ...content, [key]: e.target.value })}
               />
-              <Field label="Image description">
-                <input
-                  className={input}
-                  value={img.alt}
-                  onChange={(e) =>
+            </Field>
+          ))}
+      </div>
+      <div hidden={section !== "Content"} className="space-y-5">
+        <Field label="Facilities (one per line)">
+          <textarea
+            className={input}
+            rows={5}
+            value={content.facilities.join("\n")}
+            onChange={(e) => setContent({ ...content, facilities: e.target.value.split("\n") })}
+          />
+        </Field>
+        <ImageField
+          label="Locate us photo"
+          value={content.locationImage}
+          onChange={(url) => setContent({ ...content, locationImage: url })}
+        />
+        {(["heroImages", "courtImages"] as const).map((key) => (
+          <div key={key} className="space-y-3">
+            <h3 className="font-semibold">
+              {key === "heroImages" ? "Homepage slideshow" : "Court gallery"}
+            </h3>
+            {content[key].map((img, i) => (
+              <div key={i} className="space-y-2">
+                <ImageField
+                  label={`Photo ${i + 1}`}
+                  value={img.url}
+                  onChange={(url) =>
                     setContent({
                       ...content,
-                      [key]: content[key].map((v, j) =>
-                        i === j ? { ...v, alt: e.target.value } : v,
-                      ),
+                      [key]: content[key].map((v, j) => (i === j ? { ...v, url } : v)),
                     })
                   }
                 />
-              </Field>
-              <button
-                type="button"
-                className={secondary}
-                disabled={content[key].length === 1}
-                onClick={() =>
-                  setContent({ ...content, [key]: content[key].filter((_, j) => j !== i) })
-                }
-              >
-                Remove photo
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className={secondary}
-            onClick={() =>
-              setContent({
-                ...content,
-                [key]: [...content[key], { url: content.locationImage, alt: "Assia Padel Court" }],
-              })
-            }
-          >
-            Add photo
-          </button>
-        </div>
-      ))}
+                <Field label="Image description">
+                  <input
+                    className={input}
+                    value={img.alt}
+                    onChange={(e) =>
+                      setContent({
+                        ...content,
+                        [key]: content[key].map((v, j) =>
+                          i === j ? { ...v, alt: e.target.value } : v,
+                        ),
+                      })
+                    }
+                  />
+                </Field>
+                <button
+                  type="button"
+                  className={secondary}
+                  disabled={content[key].length === 1}
+                  onClick={() =>
+                    setContent({ ...content, [key]: content[key].filter((_, j) => j !== i) })
+                  }
+                >
+                  Remove photo
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className={secondary}
+              onClick={() =>
+                setContent({
+                  ...content,
+                  [key]: [
+                    ...content[key],
+                    { url: content.locationImage, alt: "Assia Padel Court" },
+                  ],
+                })
+              }
+            >
+              Add photo
+            </button>
+          </div>
+        ))}
+      </div>
       <Notice message={message} />
-      <button disabled={busy} className={button}>
-        {busy ? "Saving…" : "Save website content"}
+      <button disabled={busy || !dirty} className={button}>
+        {busy ? "Saving…" : "Save changes"}
       </button>
     </form>
   );
 }
-function UserManager({ userId }: { userId: string }) {
+function UserManager({ userId, role }: { userId: string; role: SiteRole }) {
   const fetch = useServerFn(listRegisteredUsers);
   const act = useServerFn(manageUser);
   const qc = useQueryClient();
@@ -281,68 +347,97 @@ function UserManager({ userId }: { userId: string }) {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "user" as "user" | "supervisor",
+  });
+  const [selected, setSelected] = useState<{
+    id: string;
+    action: "password" | "role" | "delete";
+  } | null>(null);
   const [password, setPassword] = useState("");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  async function run(
-    data:
-      | { action: "create"; email: string; name: string; password: string }
-      | { action: "password"; id: string; password: string }
-      | { action: "delete"; id: string },
-  ) {
+  const [assignedRole, setAssignedRole] = useState<"user" | "supervisor">("user");
+  type Action =
+    | {
+        action: "create";
+        name: string;
+        email: string;
+        password: string;
+        role: "user" | "supervisor";
+      }
+    | { action: "password"; id: string; password: string }
+    | { action: "role"; id: string; role: "user" | "supervisor" }
+    | { action: "delete"; id: string };
+  async function run(data: Action) {
     setBusy(true);
     setMessage("");
     try {
       await act({ data });
-      setMessage("Account updated successfully.");
+      setMessage("Account changes saved.");
       setSelected(null);
       setPassword("");
-      setForm({ name: "", email: "", password: "" });
+      if (data.action === "create") setForm({ name: "", email: "", password: "", role: "user" });
       await qc.invalidateQueries({ queryKey: ["registered-users"] });
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Account update failed");
+      setMessage(e instanceof Error ? e.message : "Update failed");
     } finally {
       setBusy(false);
     }
   }
   return (
     <div className="space-y-5">
-      <form
-        className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void run({ action: "create", ...form });
-        }}
-      >
-        <h3 className="font-semibold sm:col-span-2">Create user</h3>
-        {(["name", "email", "password"] as const).map((k) => (
-          <Field
-            key={k}
-            label={
-              k === "password"
-                ? "Initial password (12+ characters)"
-                : k === "name"
-                  ? "Full name"
-                  : "Email"
-            }
-          >
-            <input
-              required
+      <p className="text-sm text-muted-foreground">
+        Your role: <strong>{role}</strong>. Only admins can create accounts and assign roles. Admin
+        accounts are protected.
+      </p>
+      {role === "admin" && (
+        <form
+          className="grid gap-3 rounded-xl border border-border p-4 sm:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run({ action: "create", ...form });
+          }}
+        >
+          <h3 className="font-semibold sm:col-span-2">Create user or supervisor</h3>
+          {(["name", "email", "password"] as const).map((key) => (
+            <Field
+              key={key}
+              label={
+                key === "password"
+                  ? "Initial password (12+ characters)"
+                  : key === "name"
+                    ? "Full name"
+                    : "Email"
+              }
+            >
+              <input
+                required
+                type={key === "name" ? "text" : key}
+                minLength={key === "password" ? 12 : undefined}
+                autoComplete="off"
+                className={input}
+                value={form[key]}
+                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              />
+            </Field>
+          ))}
+          <Field label="Role">
+            <select
               className={input}
-              type={k === "name" ? "text" : k}
-              minLength={k === "password" ? 12 : undefined}
-              autoComplete="off"
-              value={form[k]}
-              onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-            />
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value as "user" | "supervisor" })}
+            >
+              <option value="user">User</option>
+              <option value="supervisor">Supervisor</option>
+            </select>
           </Field>
-        ))}
-        <div className="self-end">
           <button disabled={busy} className={button}>
-            Create user
+            Save changes · create account
           </button>
-        </div>
-      </form>
+        </form>
+      )}
       <Notice message={message} />
       <Field label="Search users">
         <input
@@ -352,81 +447,103 @@ function UserManager({ userId }: { userId: string }) {
           placeholder="Name, email or phone"
         />
       </Field>
-      {query.isError && <p role="alert">Could not load users.</p>}
       {query.isPending && <p>Loading users…</p>}
-      <div className="divide-y divide-border">
-        {query.data
-          ?.filter((u) =>
-            `${u.name} ${u.email} ${u.phone}`.toLowerCase().includes(search.toLowerCase()),
-          )
-          .map((u) => (
-            <div key={u.id} className="py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-semibold">
-                    {u.name || "User"}
-                    {u.id === userId ? " (you)" : ""}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{u.email || u.phone}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className={secondary}
-                    onClick={() => {
-                      setSelected(u.id);
-                      setPassword("");
-                    }}
-                  >
-                    Reset password
-                  </button>
-                  {u.id !== userId && (
+      {query.isError && <p role="alert">Could not load users.</p>}
+      {query.data
+        ?.filter((u) =>
+          `${u.name} ${u.email} ${u.phone}`.toLowerCase().includes(search.toLowerCase()),
+        )
+        .map((u) => (
+          <div key={u.id} className="space-y-3 border-t border-border py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">
+                  {u.name || "User"}
+                  {u.id === userId ? " (you)" : ""}{" "}
+                  <span className="rounded-full bg-secondary px-2 py-1 text-xs">{u.role}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">{u.email || u.phone}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(["password", "role", "delete"] as const)
+                  .filter((action) => canManageAccount(role, u.role, action, u.id === userId))
+                  .map((action) => (
                     <button
+                      key={action}
                       disabled={busy}
                       className={secondary}
                       onClick={() => {
-                        if (
-                          window.confirm(
-                            `Permanently remove ${u.email || u.phone}? This cannot be undone.`,
-                          )
-                        )
-                          void run({ action: "delete", id: u.id });
+                        setSelected({ id: u.id, action });
+                        setPassword("");
+                        setAssignedRole(u.role === "supervisor" ? "supervisor" : "user");
                       }}
                     >
-                      Remove
+                      {action === "password"
+                        ? "Reset password"
+                        : action === "role"
+                          ? "Change role"
+                          : "Remove"}
                     </button>
-                  )}
-                </div>
+                  ))}
               </div>
-              {selected === u.id && (
-                <form
-                  className="mt-3 flex flex-wrap items-end gap-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void run({ action: "password", id: u.id, password });
-                  }}
-                >
+            </div>
+            {selected?.id === u.id && (
+              <form
+                className="flex flex-wrap items-end gap-3 rounded-lg bg-secondary p-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (
+                    selected.action === "delete" &&
+                    !window.confirm(
+                      `Permanently delete ${u.email || u.phone}? This cannot be undone.`,
+                    )
+                  )
+                    return;
+                  void run(
+                    selected.action === "password"
+                      ? { action: "password", id: u.id, password }
+                      : selected.action === "role"
+                        ? { action: "role", id: u.id, role: assignedRole }
+                        : { action: "delete", id: u.id },
+                  );
+                }}
+              >
+                {selected.action === "password" ? (
                   <Field label="New password (12+ characters)">
                     <input
+                      type="password"
                       required
                       minLength={12}
-                      type="password"
                       autoComplete="new-password"
                       className={input}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
                   </Field>
-                  <button disabled={busy} className={button}>
-                    Set new password
-                  </button>
-                  <button type="button" className={secondary} onClick={() => setSelected(null)}>
-                    Cancel
-                  </button>
-                </form>
-              )}
-            </div>
-          ))}
-      </div>
+                ) : selected.action === "role" ? (
+                  <Field label="New role">
+                    <select
+                      className={input}
+                      value={assignedRole}
+                      onChange={(e) => setAssignedRole(e.target.value as "user" | "supervisor")}
+                    >
+                      <option value="user">User</option>
+                      <option value="supervisor">Supervisor</option>
+                    </select>
+                  </Field>
+                ) : (
+                  <p className="text-sm">This will permanently delete the account.</p>
+                )}
+                <button disabled={busy} className={button}>
+                  Save changes
+                </button>
+                <button type="button" className={secondary} onClick={() => setSelected(null)}>
+                  Cancel
+                </button>
+              </form>
+            )}
+          </div>
+        ))}
     </div>
   );
 }
@@ -481,7 +598,7 @@ function OwnPassword() {
       </Field>
       <Notice message={message} />
       <button className={button} disabled={busy}>
-        Change my password
+        Save changes · password
       </button>
     </form>
   );
@@ -513,12 +630,25 @@ function ScheduleForm({
     queryKey: ["availability", date],
     queryFn: () => fetch({ data: { date } }),
   });
-  async function toggle(time: string, blocked: boolean) {
+  const [pendingBlocks, setPendingBlocks] = useState<
+    Record<string, { date: string; time: string; blocked: boolean }>
+  >({});
+  function toggle(time: string, blocked: boolean) {
+    setPendingBlocks((prev) => ({ ...prev, [`${date}/${time}`]: { date, time, blocked } }));
+  }
+  async function saveBlocks() {
     setBusy(true);
     try {
-      await block({ data: { date, time, blocked } });
+      for (const [key, value] of Object.entries(pendingBlocks)) {
+        await block({ data: value });
+        setPendingBlocks((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
       await qc.invalidateQueries({ queryKey: ["availability"] });
-      setMessage(blocked ? "Slot blocked for all visitors." : "Slot reopened.");
+      setMessage("Slot changes saved.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Update failed");
     } finally {
@@ -587,7 +717,7 @@ function ScheduleForm({
           </Field>
         </div>
         <button disabled={busy} className={button}>
-          Save schedule settings
+          Save changes · opening times and prices
         </button>
       </form>
       <Notice message={message} />
@@ -611,7 +741,8 @@ function ScheduleForm({
         ) : (
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {settings.schedule.times.map((time) => {
-              const blocked = q.data?.blocked.includes(time);
+              const blocked =
+                pendingBlocks[`${date}/${time}`]?.blocked ?? q.data?.blocked.includes(time);
               const start = Date.parse(`${date}T${time}:00Z`);
               const booked = q.data?.bookings.some((b) => {
                 const bs = Date.parse(`${b.date}T${b.time}:00Z`);
@@ -635,6 +766,22 @@ function ScheduleForm({
             })}
           </div>
         )}
+      </div>
+      <div className="flex gap-3">
+        <button
+          disabled={busy || !Object.keys(pendingBlocks).length}
+          className={button}
+          onClick={() => void saveBlocks()}
+        >
+          Save changes · blocked slots ({Object.keys(pendingBlocks).length})
+        </button>
+        <button
+          className={secondary}
+          disabled={busy || !Object.keys(pendingBlocks).length}
+          onClick={() => setPendingBlocks({})}
+        >
+          Discard slot changes
+        </button>
       </div>
       <BookingEditor />
     </div>
@@ -758,7 +905,7 @@ export function BookingEditor({
       </div>
       <Notice message={message} />
       <button className={button} disabled={busy}>
-        {busy ? "Saving…" : "Save reservation"}
+        {busy ? "Saving…" : "Save changes · reservation"}
       </button>
     </form>
   );

@@ -4,13 +4,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { contentSchema, scheduleSchema, defaultContent, defaultSchedule } from "./site-content";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { canManageAccount, resolveRole } from "./roles";
 async function adminClient(client: SupabaseClient) {
-  const { data, error } = await client.rpc("is_admin");
-  if (error || data !== true) throw new Error("Administrator access required");
-  const { data: identity, error: identityError } = await client.auth.getUser();
-  if (identityError || !identity.user) throw new Error("Please sign in again");
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return { db: supabaseAdmin as SupabaseClient, userId: identity.user.id };
+  const { requireStaff } = await import("./staff.server");
+  return requireStaff(client);
 }
 export const getSiteSettings = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -50,6 +47,7 @@ export const manageUser = createServerFn({ method: "POST" })
           action: z.literal("create"),
           email: z.string().email(),
           name: z.string().trim().min(1).max(100),
+          role: z.enum(["user", "supervisor"]).default("user"),
           password: z.string().min(12).max(128),
         }),
         z.object({
@@ -58,17 +56,25 @@ export const manageUser = createServerFn({ method: "POST" })
           password: z.string().min(12).max(128),
         }),
         z.object({ action: z.literal("delete"), id: z.string().uuid() }),
+        z.object({
+          action: z.literal("role"),
+          id: z.string().uuid(),
+          role: z.enum(["user", "supervisor"]),
+        }),
       ])
       .parse(v),
   )
   .handler(async ({ context, data }) => {
-    const { db, userId } = await adminClient(context.supabase);
+    const { db, userId, role } = await adminClient(context.supabase);
     if (data.action === "create") {
+      if (!canManageAccount(role, data.role, "create"))
+        throw new Error("Only admins can create accounts or assign roles");
       const { error } = await db.auth.admin.createUser({
         email: data.email,
         password: data.password,
         email_confirm: true,
         user_metadata: { full_name: data.name },
+        app_metadata: { court_role: data.role },
       });
       if (error) throw error;
     } else {
@@ -78,7 +84,17 @@ export const manageUser = createServerFn({ method: "POST" })
         .eq("user_id", data.id)
         .maybeSingle();
       if (lookupError) throw lookupError;
-      if (data.action === "delete") {
+      const { data: target, error: targetError } = await db.auth.admin.getUserById(data.id);
+      if (targetError || !target.user) throw new Error("User not found");
+      const targetRole = resolveRole(!!protectedAdmin, target.user.app_metadata);
+      if (!canManageAccount(role, targetRole, data.action, data.id === userId))
+        throw new Error("You do not have permission to change this account");
+      if (data.action === "role") {
+        const { error } = await db.auth.admin.updateUserById(data.id, {
+          app_metadata: { ...target.user.app_metadata, court_role: data.role },
+        });
+        if (error) throw error;
+      } else if (data.action === "delete") {
         if (data.id === userId || protectedAdmin)
           throw new Error("Administrator accounts cannot be removed here");
         // Ban first so refreshes and verified-user endpoints reject the removed account.
@@ -206,4 +222,23 @@ export const getGuestBookings = createServerFn({ method: "POST" })
     return (rows ?? [])
       .filter((b) => data.some((k) => k.id === b.id && k.token === b.management_token))
       .map(({ management_token, ...b }) => b);
+  });
+
+export const prepareSiteImageUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) =>
+    z.object({ type: z.enum(["image/jpeg", "image/png", "image/webp"]) }).parse(v),
+  )
+  .handler(async ({ context, data }) => {
+    const { db } = await adminClient(context.supabase);
+    const path = `${crypto.randomUUID()}.${data.type.split("/")[1]}`;
+    const { data: upload, error } = await db.storage
+      .from("site-images")
+      .createSignedUploadUrl(path);
+    if (error) throw error;
+    return {
+      path,
+      token: upload.token,
+      url: db.storage.from("site-images").getPublicUrl(path).data.publicUrl,
+    };
   });
