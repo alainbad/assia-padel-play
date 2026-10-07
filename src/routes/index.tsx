@@ -52,7 +52,7 @@ function Index() {
   return (
     <ContentContext.Provider value={settings.data?.content ?? defaultContent}>
       <ScheduleContext.Provider value={settings.data?.schedule ?? defaultSchedule}>
-        <div className="bg-background">
+        <div className="bg-background" id="home">
           <HeroGallery />
           {settings.isError && (
             <p role="alert" className="p-4 text-center text-destructive">
@@ -273,6 +273,12 @@ function BookingSection() {
 
   return (
     <section className="py-6" id="booking">
+      <a
+        href="#home"
+        className="mb-4 inline-flex rounded-lg border border-input px-4 py-2 text-sm font-semibold hover:bg-secondary"
+      >
+        ← Home
+      </a>
       <div className="mb-4">
         <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
           {content.bookingTitle}
