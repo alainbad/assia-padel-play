@@ -15,7 +15,9 @@ test('Supervisors can manage ordinary accounts but cannot create or assign roles
  assert.equal(canManageAccount('supervisor','user','delete'),true);
  for(const target of ['user','supervisor','admin'])for(const action of ['create','role'])assert.equal(canManageAccount('supervisor',target,action),false);
  for(const action of ['password','delete'])assert.equal(canManageAccount('supervisor','admin',action),false);
- assert.equal(canManageAccount('supervisor','supervisor','password'),false);
+ assert.equal(canManageAccount('supervisor','supervisor','password'),true);
+ assert.equal(canManageAccount('supervisor','supervisor','delete'),true);
+ assert.equal(canManageAccount('supervisor','supervisor','delete',true),false);
 });
 test('Admins assign supervisor roles and protect their own account',()=>{
  assert.equal(canManageAccount('admin','supervisor','create'),true);

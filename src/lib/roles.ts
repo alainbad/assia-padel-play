@@ -12,5 +12,5 @@ export function canManageAccount(
   if (action === "create" || action === "role") return actor === "admin" && target !== "admin";
   if (action === "delete" && self) return false;
   if (target === "admin") return action === "password" && actor === "admin" && self;
-  return actor === "admin" || target === "user";
+  return true;
 }
