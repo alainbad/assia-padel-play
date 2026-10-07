@@ -168,7 +168,16 @@ function Header() {
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
         <Link to="/" className="flex items-center gap-3 font-display text-lg font-bold tracking-tight text-foreground">
           <img src={logo} alt="Assia Padel Court logo" className="h-16 w-16 object-contain" width={64} height={64} />
-          <span>Assia Padel</span>
+          <span className="relative block h-[32px] w-[170px] overflow-hidden rounded bg-[#00250e] sm:h-[42px] sm:w-[230px]" aria-label="Assia Padel">
+            <img
+              src="/images/assia-wordmark-approved.webp"
+              alt=""
+              aria-hidden="true"
+              className="absolute left-[-43%] top-[-125%] w-[151%] max-w-none"
+              width={1983}
+              height={793}
+            />
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
