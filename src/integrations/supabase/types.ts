@@ -37,6 +37,7 @@ export type Database = {
           duration: number
           email: string | null
           id: string
+          management_token: string | null
           name: string
           notes: string | null
           payment_method: string
@@ -55,6 +56,7 @@ export type Database = {
           duration?: number
           email?: string | null
           id?: string
+          management_token?: string | null
           name: string
           notes?: string | null
           payment_method: string
@@ -73,6 +75,7 @@ export type Database = {
           duration?: number
           email?: string | null
           id?: string
+          management_token?: string | null
           name?: string
           notes?: string | null
           payment_method?: string
@@ -83,6 +86,42 @@ export type Database = {
           reference?: string
           status?: string
           time?: string
+        }
+        Relationships: []
+      }
+      schedule_blocks: {
+        Row: {
+          date: string
+          time: string
+        }
+        Insert: {
+          date: string
+          time: string
+        }
+        Update: {
+          date?: string
+          time?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          content: Json
+          id: number
+          schedule: Json
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          id: number
+          schedule?: Json
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          id?: number
+          schedule?: Json
+          updated_at?: string
         }
         Relationships: []
       }
@@ -110,6 +149,7 @@ export type Database = {
           duration: number
           email: string | null
           id: string
+          management_token: string | null
           name: string
           notes: string | null
           payment_method: string
