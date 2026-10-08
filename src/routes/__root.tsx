@@ -181,6 +181,9 @@ function Header() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
+          <Link to="/" activeOptions={{ exact: true }} activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
+            Home
+          </Link>
           <Link to="/bookings" activeProps={{ className: "text-foreground" }} className="text-muted-foreground transition-colors hover:text-foreground">
             My Bookings
           </Link>
@@ -215,6 +218,9 @@ function Header() {
       {menuOpen && (
         <div className="border-t border-border bg-background px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
+            <Link to="/" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary">
+              Home
+            </Link>
             <Link to="/bookings" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-base font-medium text-foreground hover:bg-secondary">
               My Bookings
             </Link>
