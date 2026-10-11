@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import { DevManiaCredit } from "@/components/DevManiaCredit";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getSiteSettings, getAvailability } from "@/lib/management.functions";
@@ -1067,6 +1068,9 @@ function ContactFooter() {
         <p className="text-xs text-muted-foreground">
           © {new Date().getFullYear()} {content.copyright}
         </p>
+        <div className="flex justify-center pt-2 text-foreground">
+          <DevManiaCredit />
+        </div>
       </div>
     </footer>
   );
